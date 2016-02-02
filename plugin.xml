@@ -1,0 +1,62 @@
+<!--
+ ezAR Cordova plugin manifest
+ ezartech.com
+-->
+<plugin xmlns="http://cordova.apache.org/ns/plugins/1.0"
+	  xmlns:android="http://schemas.android.com/apk/res/android"
+	  id="com.ezartech.ezar.snapshot"
+	  version="0.1.1">
+	  
+	<name>ezAR Snapshot</name>
+	<description>Capture an image in JPG or PNG format of the application UI and optionally save it to 
+	             the device image gallery. Works with ezAR to include the camera preview background
+				 of the webview.  
+	</description>
+	<keywords>snapshot, screenshot</keywords>
+	<license>modified MIT License, see http://ezartech.com/ezarstartupkit-license</license>
+
+	<!-- web api -->
+	<js-module src="www/snapshot.js" name="snapshot">
+		<merges target="ezar" />
+	</js-module>
+	
+	
+	<!-- ios -->
+	<platform name="ios">
+		
+		<config-file target="config.xml" parent="/*">
+			<feature name="snapshot">
+				<param name="ios-package" value="CDVezARSnapshot"/>
+			</feature>
+		</config-file>
+		
+		<header-file src="src/ios/CDVezARSnapshot.h" /> 
+		<source-file src="src/ios/CDVezARSnapshot.m" />
+		
+		<framework src="UIKit.framework" />
+		<framework src="Foundation.framework" />
+		<framework src="AVFoundation.framework" />
+		<framework src="CoreImage.framework" />
+		<framework src="CoreVideo.framework" />
+	</platform>
+
+	<!-- android -->
+	<!--
+	<platform name="android">
+	  <config-file parent="/*" target="res/xml/config.xml">
+		 <feature name="ezAR">
+			<param name="android-package" value="com.ezartech.ezar.ezAR" />
+		 </feature>
+	  </config-file>
+	  <config-file target="AndroidManifest.xml" parent="/*">
+			<uses-permission android:name="android.permission.CAMERA" />
+			<uses-feature android:name="android.hardware.camera" />
+			<uses-feature android:name="android.hardware.camera.autofocus" />
+            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+	  </config-file>
+	  <config-file parent="/*" target="AndroidManifest.xml" />
+	  <source-file src="src/android/ezAR.java" target-dir="src/com/ezartech/ezar" />
+	  <source-file src="src/android/CameraDirection.java" target-dir="src/com/ezartech/ezar" />
+  </platform>
+  --> 
+</plugin>

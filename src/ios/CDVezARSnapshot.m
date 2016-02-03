@@ -15,7 +15,7 @@
 #import "MainViewController.h"
 
 //NSString *const EZAR_ERROR_DOMAIN = @"EZAR_SNAPSHOT_ERROR_DOMAIN";
-NSInteger const EZAR_SNAPSHOT_VIEW_TAG = 999;
+NSInteger const EZAR_CAMERA_VIEW_TAG = 999;
 
 #ifndef __CORDOVA_4_0_0
 #import <Cordova/NSData+Base64.h>
@@ -53,62 +53,74 @@ static NSString* toBase64(NSData* data) {
     [super pluginInitialize];
 }
 
-- (BOOL) isEZARAvailable
+- (UIImageView *) getCameraView
 {
-    return [self.viewController.view viewWithTag: EZAR_SNAPSHOT_VIEW_TAG] == nil;
+    UIImageView* cameraView = (UIImageView *)[self.viewController.view viewWithTag: EZAR_CAMERA_VIEW_TAG];
+    return cameraView;
 }
 
+- (BOOL) isVideoOverlayAvailable
+{
+    return [self getCameraView] == nil;
+}
 
-
-- (AVCaptureSession *) getAVCaptureSession
+-(BOOL) isCameraRunning
 {
     MainViewController *ctrl = (MainViewController *)self.viewController;
-    CDVPlugin* ezarPlugin = [ctrl.pluginObjects objectForKey:@"CDVezAR"];
+    CDVPlugin* videoOverlayPlugin = [ctrl.pluginObjects objectForKey:@"CDVezARVideoOverlay"];
     
-    if (!ezarPlugin) {
+    BOOL result = NO;
+    
+    if (!videoOverlayPlugin) {
+        return result;
+    }
+    
+    // Find AVCaptureSession
+    NSString* methodName = @"isCameraRunning";
+    SEL selector = NSSelectorFromString(methodName);
+    result = (BOOL)[videoOverlayPlugin performSelector:selector];
+    
+    return result;
+}
+
+- (AVCaptureStillImageOutput *) getAVCaptureStillImageOutput
+{
+    MainViewController *ctrl = (MainViewController *)self.viewController;
+    CDVPlugin* videoOverlayPlugin = [ctrl.pluginObjects objectForKey:@"CDVezARVideoOverlay"];
+    
+    if (!videoOverlayPlugin) {
         return nil;
     }
     
     // Find AVCaptureSession
-    NSString* methodName = @"getAVCaptureSession";
+    NSString* methodName = @"getAVCaptureStillImageOutput";
     SEL selector = NSSelectorFromString(methodName);
-    AVCaptureSession* avCaptureSession = (AVCaptureSession *)[ezarPlugin performSelector:selector];
+    AVCaptureStillImageOutput* stillImageOutput =
+        (AVCaptureStillImageOutput *)[videoOverlayPlugin performSelector:selector];
     
-    
-    return avCaptureSession;
-}
-
-- (UIImageView *) getCameraView
-{
-    UIImageView* cameraView = (UIImageView *)[self.viewController.view viewWithTag: EZAR_SNAPSHOT_VIEW_TAG];
-    return cameraView;
+    return stillImageOutput;
 }
 
 
-//
-//
-//
+// rely on videoOverlay to setup the AVCaptureStillImageOutput when the camera starts. This gives
+// the camera time to adjust its light level & white balance; otherwise you get a very dark
+// snapshot image if we grab the video frame too quickly.
 - (void) snapshot:(CDVInvokedUrlCommand*)command
 {
-    // Find the ezAR CameraView
+    // Find the videoOverlay CameraView
     UIImageView *cameraView = self.getCameraView;
     if (!cameraView) {
        [self snapshotViewHierarchy:nil cameraView:nil command:command];
         return;
     }
     
-    // Find the current ezAR AVCaptureSession
-    AVCaptureSession* captureSession = [self getAVCaptureSession];
-    if (!captureSession || !captureSession.isRunning) {
+    AVCaptureStillImageOutput* stillImageOutput = [self getAVCaptureStillImageOutput];
+    
+    if (!stillImageOutput || ![self isCameraRunning]) {
         [self snapshotViewHierarchy:nil cameraView:nil command:command];
         return;
     }
  
-    //configure to capture a video frame
-    AVCaptureStillImageOutput *stillImageOutput = [[AVCaptureStillImageOutput alloc] init];
-    NSDictionary *outputSettings = [[NSDictionary alloc] initWithObjectsAndKeys: AVVideoCodecJPEG, AVVideoCodecKey, nil];
-    [stillImageOutput setOutputSettings:outputSettings];
-    [captureSession addOutput: stillImageOutput];
     
     //
     AVCaptureConnection *videoConnection = nil;
@@ -131,11 +143,8 @@ static NSString* toBase64(NSData* data) {
     [stillImageOutput captureStillImageAsynchronouslyFromConnection: videoConnection
                        completionHandler: ^(CMSampleBufferRef imageBuffer, NSError *error) {
                         
-        [captureSession removeOutput: stillImageOutput];
-                           
         if (error) {
-            //fix me
-            /*
+            
             NSDictionary* errorResult = [self makeErrorResult: 1 withError: error];
                                                           
             CDVPluginResult* pluginResult =
@@ -143,7 +152,6 @@ static NSString* toBase64(NSData* data) {
                                 messageAsDictionary: errorResult];
                                                           
             return  [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-            */
         }
                
                                                       
@@ -151,24 +159,6 @@ static NSString* toBase64(NSData* data) {
         UIImage *cameraImage = [[UIImage alloc] initWithData:imageData];
                            
         //rotate image to match device orientation
-        //UIDeviceOrientation devOrient = [[UIDevice currentDevice] orientation];
-        /*
-         switch (devOrient) {
-            case UIDeviceOrientationLandscapeLeft:
-                cameraImage = [UIImage imageWithCGImage: [cameraImage CGImage] scale:1.0 orientation:UIImageOrientationUp];
-                break;
-            case UIDeviceOrientationPortraitUpsideDown:
-                cameraImage = [UIImage imageWithCGImage: [cameraImage CGImage] scale:1.0 orientation:UIImageOrientationLeft];
-                break;
-            case UIDeviceOrientationLandscapeRight:
-                cameraImage = [UIImage imageWithCGImage: [cameraImage CGImage] scale:1.0 orientation:UIImageOrientationDown];
-                break;
-            default:
-                //portrait orient; do nothing
-                break;
-        }
-         */
-        
         switch (self.viewController.interfaceOrientation) {
             case UIInterfaceOrientationPortrait:
                 cameraImage = [UIImage imageWithCGImage: [cameraImage CGImage] scale:1.0 orientation:UIImageOrientationRight];
@@ -236,14 +226,41 @@ static NSString* toBase64(NSData* data) {
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
+typedef NS_ENUM(NSUInteger, EZAR_ERROR_CODE) {
+    EZAR_ERROR_CODE_ERROR=1,
+    EZAR_ERROR_CODE_INVALID_ARGUMENT,
+    EZAR_ERROR_CODE_INVALID_STATE,
+    EZAR_ERROR_CODE_ACTIVATION
+};
 
-
-- (void) snapshotxxxx:(CDVInvokedUrlCommand*)command
+//
+//
+//
+- (NSDictionary*)makeErrorResult: (EZAR_ERROR_CODE) errorCode withData: (NSString*) description
 {
-    CDVPluginResult* pluginResult =
-        [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString: @"ALL OK"];
+    NSMutableDictionary* errorData = [NSMutableDictionary dictionaryWithCapacity:4];
     
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    [errorData setObject: @(errorCode)  forKey:@"code"];
+    [errorData setObject: @{ @"description": description}  forKey:@"data"];
+    
+    return errorData;
+}
+
+//
+//
+//
+- (NSDictionary*)makeErrorResult: (EZAR_ERROR_CODE) errorCode withError: (NSError*) error
+{
+    NSMutableDictionary* errorData = [NSMutableDictionary dictionaryWithCapacity:2];
+    [errorData setObject: @(errorCode)  forKey:@"code"];
+    
+    NSMutableDictionary* data = [NSMutableDictionary dictionaryWithCapacity:2];
+    [data setObject: [error.userInfo objectForKey: NSLocalizedFailureReasonErrorKey] forKey:@"description"];
+    [data setObject: @(error.code) forKey:@"iosErrorCode"];
+    
+    [errorData setObject: data  forKey:@"data"];
+    
+    return errorData;
 }
 
 @end

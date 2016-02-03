@@ -27,8 +27,6 @@ module.exports = (function() {
      */
     
     _snapshot.snapshot = function(successCallback,errorCallback, options) {
-            //todo: wayne - add init requirement checking
-            //if (!_self.isActive()) return;
                   
         //options impl inspired by cordova Camera plugin
         options = options || {};

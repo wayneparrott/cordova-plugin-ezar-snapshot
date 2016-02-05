@@ -47,10 +47,6 @@
 			<param name="android-package" value="com.ezartech.ezar.snapshot.Snapshot" />
 		 </feature>
 	  </config-file>
-	  <config-file target="AndroidManifest.xml" parent="/*">
-			<uses-permission android:name="android.permission.CAMERA" />
-			<uses-feature android:name="android.hardware.camera" />
-	  </config-file>
 	  <config-file target="AndroidManifest.xml" parent="/*"/>
 	  <source-file src="src/android/Snapshot.java" target-dir="src/com/ezartech/ezar/snapshot" />
   </platform>

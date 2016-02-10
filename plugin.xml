@@ -47,8 +47,13 @@
 			<param name="android-package" value="com.ezartech.ezar.snapshot.Snapshot" />
 		 </feature>
 	  </config-file>
-	  <config-file target="AndroidManifest.xml" parent="/*"/>
+      <config-file parent="/*" target="AndroidManifest.xml" >
+            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+            <uses-permission android:name="android.permission.CAMERA" />
+			<uses-feature android:name="android.hardware.camera.any" />		
+	  </config-file>
 	  <source-file src="src/android/Snapshot.java" target-dir="src/com/ezartech/ezar/snapshot" />
+      <source-file src="src/android/PermissionHelper.java" target-dir="src/com/ezartech/ezar/snapshot" />
   </platform>
   
 </plugin>

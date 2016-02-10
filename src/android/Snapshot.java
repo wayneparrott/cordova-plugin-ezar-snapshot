@@ -1,5 +1,7 @@
 package com.ezartech.ezar.snapshot;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.CompressFormat;
 import android.graphics.BitmapFactory;
@@ -24,6 +26,7 @@ import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaInterface;
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CordovaWebView;
+import org.apache.cordova.PluginResult;
 import org.json.JSONArray;
 import org.json.JSONException;
 
@@ -37,8 +40,19 @@ import java.lang.reflect.Method;
 public class Snapshot extends CordovaPlugin {
 	private static final String TAG = "Snapshot";
 
+	protected final static String[] permissions = {
+			Manifest.permission.CAMERA,
+			Manifest.permission.WRITE_EXTERNAL_STORAGE };
+	public final static int PERMISSION_DENIED_ERROR = 20;
+	public final static int CAMERA_SEC = 0;
+	public final static int SAVE_TO_ALBUM_SEC = 1;
+
 	private View webViewView;
 	private MediaActionSound mSound;
+
+	private CompressFormat  encoding;
+	private boolean saveToPhotoAlbum;
+	private CallbackContext callbackContext;
 
 
 
@@ -49,14 +63,6 @@ public class Snapshot extends CordovaPlugin {
 		webViewView = cvWebView.getView();
 		mSound = new MediaActionSound();
 		mSound.load(MediaActionSound.SHUTTER_CLICK);
-
-//		cordova.getActivity().runOnUiThread(new Runnable() {
-//			@Override
-//			public void run() {
-//				mSound = new MediaActionSound();
-//				mSound.load(MediaActionSound.SHUTTER_CLICK);
-//			}
-//		});
 	}
 
 
@@ -65,11 +71,10 @@ public class Snapshot extends CordovaPlugin {
 		Log.v(TAG, action + " " + args.length());
 
 		if (action.equals("snapshot")) {
-			//TODO: process args
-			int encodingParam = 0;  //JPG: 0, PNG: 1
-			boolean saveToPhotoAlbum = true;
-			Bitmap.CompressFormat encoding =
-					encodingParam == 0 ? Bitmap.CompressFormat.JPEG : Bitmap.CompressFormat.PNG;
+			this.callbackContext = callbackContext;
+			int encodingParam = args.getInt(0);  //JPG: 0, PNG: 1
+			this.encoding = encodingParam == 0 ? Bitmap.CompressFormat.JPEG : Bitmap.CompressFormat.PNG;
+			this.saveToPhotoAlbum = args.getBoolean(1);
 
 			this.snapshot(encoding, saveToPhotoAlbum, callbackContext);
 
@@ -79,8 +84,28 @@ public class Snapshot extends CordovaPlugin {
 		return false;
 	}
     
-    private void snapshot(final CompressFormat encoding, final boolean saveToPhotoAlbum, final CallbackContext callbackContext) {
+    private void snapshot(final CompressFormat encoding, final boolean saveToPhotoAlbum, CallbackContext callbackContext) {
 		Log.d(TAG, "snapshot");
+
+		if (getActiveVOCamera() != null) {
+			if (PermissionHelper.hasPermission(this, permissions[0])) {
+				secureSnapshot(encoding, saveToPhotoAlbum, callbackContext);
+			} else {
+				PermissionHelper.requestPermission(this, CAMERA_SEC, Manifest.permission.CAMERA);
+			}
+		}
+
+		if (saveToPhotoAlbum) {
+			if (PermissionHelper.hasPermission(this, permissions[1])) {
+				secureSnapshot(encoding, saveToPhotoAlbum, callbackContext);
+			} else {
+				PermissionHelper.requestPermission(this, SAVE_TO_ALBUM_SEC, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+			}
+		}
+	}
+
+	private void secureSnapshot(final CompressFormat encoding, final boolean saveToPhotoAlbum, final CallbackContext callbackContext) {
+		Log.d(TAG, "secureSnapshot");
 
 		Camera voCamera = getActiveVOCamera();
 		if (voCamera == null) {
@@ -109,7 +134,24 @@ public class Snapshot extends CordovaPlugin {
 		);
 	}
 
-	private void buildAndSaveSnapshotImage(CompressFormat format, final boolean saveToGallery,
+	//copied from Apache Cordova plugin
+	public void onRequestPermissionResult(int requestCode, String[] permissions,
+										  int[] grantResults) throws JSONException {
+		for(int r:grantResults) {
+			if(r == PackageManager.PERMISSION_DENIED) {
+				this.callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, PERMISSION_DENIED_ERROR));
+				return;
+			}
+		}
+		switch(requestCode) {
+			case CAMERA_SEC:
+			case SAVE_TO_ALBUM_SEC:
+				secureSnapshot(this.encoding,this.saveToPhotoAlbum,this.callbackContext);
+				break;
+		}
+	}
+
+	private void buildAndSaveSnapshotImage(final CompressFormat format, final boolean saveToGallery,
 										   final boolean playSound,
 										   final byte[] videoFrameData, final Camera camera,
 										   final CallbackContext callbackContext) {
@@ -174,12 +216,14 @@ public class Snapshot extends CordovaPlugin {
 					resultBitmap = webViewBitmap;
 				}
 
-				//save snapshot image to gallery
-				String url = saveToMediaStore(resultBitmap);
-				Log.i(TAG, "SAVED image: " + url);
+				if (saveToGallery) {
+					//save snapshot image to gallery
+					String url = saveToMediaStore(resultBitmap);
+					Log.i(TAG, "SAVED image: " + url);
+				}
 
 				//
-				String imageEncoded = encodeImageData(resultBitmap,CompressFormat.JPEG);
+				String imageEncoded = encodeImageData(resultBitmap,format);
 
 				callbackContext.success(imageEncoded);
 

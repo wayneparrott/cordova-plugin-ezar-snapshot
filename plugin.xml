@@ -41,22 +41,19 @@
 	</platform>
 
 	<!-- android -->
-	<!--
 	<platform name="android">
 	  <config-file parent="/*" target="res/xml/config.xml">
-		 <feature name="ezAR">
-			<param name="android-package" value="com.ezartech.ezar.ezAR" />
+		 <feature name="snapshot">
+			<param name="android-package" value="com.ezartech.ezar.snapshot.Snapshot" />
 		 </feature>
 	  </config-file>
-	  <config-file target="AndroidManifest.xml" parent="/*">
-			<uses-permission android:name="android.permission.CAMERA" />
-			<uses-feature android:name="android.hardware.camera" />
-			<uses-feature android:name="android.hardware.camera.autofocus" />
+      <config-file parent="/*" target="AndroidManifest.xml" >
             <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+            <uses-permission android:name="android.permission.CAMERA" />
+			<uses-feature android:name="android.hardware.camera.any" />		
 	  </config-file>
-	  <config-file parent="/*" target="AndroidManifest.xml" />
-	  <source-file src="src/android/ezAR.java" target-dir="src/com/ezartech/ezar" />
-	  <source-file src="src/android/CameraDirection.java" target-dir="src/com/ezartech/ezar" />
+	  <source-file src="src/android/Snapshot.java" target-dir="src/com/ezartech/ezar/snapshot" />
+      <source-file src="src/android/PermissionHelper.java" target-dir="src/com/ezartech/ezar/snapshot" />
   </platform>
-  --> 
+  
 </plugin>

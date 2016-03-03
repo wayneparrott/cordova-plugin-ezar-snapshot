@@ -21,12 +21,12 @@ module.exports = (function() {
     /**
      * Create a screenshot image
      *
-     *
+     * options = {
+     *   "saveToPhotoAlbum": true, 
+     *   "encoding": _snapshot.ImageEncoding.JPEG }
      */
     
     _snapshot.snapshot = function(successCallback,errorCallback, options) {
-            //todo: wayne - add init requirement checking
-            //if (!_self.isActive()) return;
                   
         //options impl inspired by cordova Camera plugin
         options = options || {};
@@ -35,7 +35,8 @@ module.exports = (function() {
         var saveToPhotoAlbum = !!options.saveToPhotoAlbum;
         
         var onSuccess = function(imageData) {
-            var encoding = encoding == _snapshot.ImageEncoding.JPEG ? "jpeg" : "png";
+            var encoding = encoding == _snapshot.ImageEncoding.JPEG ? 
+                _snapshot.ImageEncoding.JPEG : _snapshot.ImageEncoding.PNG;
             var dataUrl = "data:image/" + encoding + ";base64," + imageData;
             if (successCallback) {
                   successCallback(dataUrl);

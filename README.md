@@ -1,5 +1,10 @@
 #ezAR Snapshot Cordova Plugin
-xxxx
+Capture images of the application user interface in JPG or PNG format.  
+Optionally, save the image to the default photo gallery.
+
+Works with or without the VideoOverlay plugin. When the VideoOverlay plugin is not installed  
+or does not have an active camera then the snapshot image will only include  
+the WebView content.
 
 ##Supported Platforms
 - iOS 7, 8 & 9
@@ -10,10 +15,11 @@ Add the snapshot plugin to your Corodva project the Cordova CLI
 
         cordova plugin add pathToEzar/com.ezartech.ezar.snapshot
 
-Next in your Cordova JavaScript deviceready handler include the following JavaScript snippet to initialize ezAR and activate the camera on the back of the device.
+Next in your Cordova JavaScript deviceready handler include the following  
+JavaScript snippet to initialize ezAR and activate the camera on the back of the device.
 
         ezar.snapshot(
-            function(image) {
+            function(base64Image) {
                 //do something with the image
                 },
             function(err) {

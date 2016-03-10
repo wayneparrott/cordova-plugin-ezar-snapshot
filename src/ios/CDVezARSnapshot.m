@@ -92,10 +92,9 @@ static NSString* toBase64(NSData* data) {
         return nil;
     }
     
-    // Find AVCaptureSession
     NSString* methodName = @"getAVCaptureStillImageOutput";
     SEL selector = NSSelectorFromString(methodName);
-    AVCaptureStillImageOutput* stillImageOutput =
+    AVCaptureStillImageOutput *stillImageOutput =
         (AVCaptureStillImageOutput *)[videoOverlayPlugin performSelector:selector];
     
     return stillImageOutput;

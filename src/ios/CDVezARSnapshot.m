@@ -110,14 +110,14 @@ static NSString* toBase64(NSData* data) {
     // Find the videoOverlay CameraView
     UIImageView *cameraView = self.getCameraView;
     if (!cameraView) {
-       [self snapshotViewHierarchy:nil cameraView:nil playSound: YES command:command];
+       [self snapshotViewHierarchy:nil cameraView:nil playSound:YES command:command];
         return;
     }
     
     AVCaptureStillImageOutput* stillImageOutput = [self getAVCaptureStillImageOutput];
     
     if (!stillImageOutput || ![self isCameraRunning]) {
-        [self snapshotViewHierarchy:nil cameraView:nil playSound: YES command:command];
+        [self snapshotViewHierarchy:nil cameraView:nil playSound:YES command:command];
         return;
     }
  
@@ -175,14 +175,14 @@ static NSString* toBase64(NSData* data) {
             
         }
         
-        [self snapshotViewHierarchy:cameraImage cameraView:cameraView playSound: NO command:command];
+        [self snapshotViewHierarchy:cameraImage cameraView:cameraView playSound:NO command:command];
         
     }];
 }
 
 
 - (void) snapshotViewHierarchy:(UIImage*)cameraImage cameraView:(UIImageView*)cameraView 
-            playSound:(BOOL)playSound command:(CDVInvokedUrlCommand*)command
+            playSound:(BOOL)shouldPlaySound command:(CDVInvokedUrlCommand*)command
 {
     BOOL saveToPhotoAlbum = [[command argumentAtIndex:1 withDefault:@(NO)] boolValue];
     EZAR_IMAGE_ENCODING encodingType = [[command argumentAtIndex:0 withDefault:@(EZAR_IMAGE_ENCODING_JPG)] unsignedIntegerValue];
@@ -195,7 +195,7 @@ static NSString* toBase64(NSData* data) {
         cameraView.contentMode = UIViewContentModeScaleAspectFill;
     }
     
-    if (playSound) {
+    if (shouldPlaySound) {
         //solution from http://stackoverflow.com/questions/5430949/play-iphone-camera-shutter-sound-when-i-click-a-button
         AudioServicesPlaySystemSound(1108);
     }

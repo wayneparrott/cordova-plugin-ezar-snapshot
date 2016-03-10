@@ -1,8 +1,9 @@
 #ezAR Snapshot Plugin Release Notes
 
 ##0.2.1 (20160310)
-Minor changes:
+Changes:
 1. Added camera shutter sound for cases when the video overlay is not installed or running on iOS devices.
+2. Fixed iOS camera exception issue.
 
 
 ##0.2.0 (20160302)

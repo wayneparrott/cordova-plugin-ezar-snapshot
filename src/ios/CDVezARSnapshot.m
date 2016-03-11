@@ -64,38 +64,61 @@ static NSString* toBase64(NSData* data) {
     return [self getCameraView] == nil;
 }
 
--(BOOL) isCameraRunning
+-(CDVPlugin*)getVideoOverlayPlugin
 {
     MainViewController *ctrl = (MainViewController *)self.viewController;
     CDVPlugin* videoOverlayPlugin = [ctrl.pluginObjects objectForKey:@"CDVezARVideoOverlay"];
-    
+    return videoOverlayPlugin;
+}
+
+-(BOOL) hasVideoOverlayPlugin
+{
+    return !![self getVideoOverlayPlugin];
+}
+
+
+-(BOOL) isCameraRunning
+{
     BOOL result = NO;
     
-    if (!videoOverlayPlugin) {
+    if (![self hasVideoOverlayPlugin]) {
+        return result;
+    }
+
+    // Find AVCaptureSession
+    NSString* methodName = @"isCameraRunning";
+    SEL selector = NSSelectorFromString(methodName);
+    result = (BOOL)[[self getVideoOverlayPlugin] performSelector:selector];
+    
+    return result;
+}
+
+-(BOOL) isFrontCameraRunning
+{
+    BOOL result = NO;
+    
+    if (![self hasVideoOverlayPlugin]) {
         return result;
     }
     
     // Find AVCaptureSession
-    NSString* methodName = @"isCameraRunning";
+    NSString* methodName = @"isFrontCameraRunning";
     SEL selector = NSSelectorFromString(methodName);
-    result = (BOOL)[videoOverlayPlugin performSelector:selector];
+    result = (BOOL)[[self getVideoOverlayPlugin] performSelector:selector];
     
     return result;
 }
 
 - (AVCaptureStillImageOutput *) getAVCaptureStillImageOutput
 {
-    MainViewController *ctrl = (MainViewController *)self.viewController;
-    CDVPlugin* videoOverlayPlugin = [ctrl.pluginObjects objectForKey:@"CDVezARVideoOverlay"];
-    
-    if (!videoOverlayPlugin) {
+    if (![self hasVideoOverlayPlugin]) {
         return nil;
     }
     
     NSString* methodName = @"getAVCaptureStillImageOutput";
     SEL selector = NSSelectorFromString(methodName);
     AVCaptureStillImageOutput *stillImageOutput =
-        (AVCaptureStillImageOutput *)[videoOverlayPlugin performSelector:selector];
+        (AVCaptureStillImageOutput *)[[self getVideoOverlayPlugin] performSelector:selector];
     
     return stillImageOutput;
 }
@@ -156,9 +179,18 @@ static NSString* toBase64(NSData* data) {
                                                       
         NSData *imageData = [AVCaptureStillImageOutput jpegStillImageNSDataRepresentation:imageBuffer];
         UIImage *cameraImage = [[UIImage alloc] initWithData:imageData];
+                         
+        UIInterfaceOrientation interfaceOrientation = self.viewController.interfaceOrientation;
+        if ([self isFrontCameraRunning]) {
+            if (interfaceOrientation == UIInterfaceOrientationLandscapeLeft) {
+                interfaceOrientation = UIInterfaceOrientationLandscapeRight;
+            } else if (interfaceOrientation == UIInterfaceOrientationLandscapeRight) {
+                interfaceOrientation = UIInterfaceOrientationLandscapeLeft;
+            }
+        }
                            
         //rotate image to match device orientation
-        switch (self.viewController.interfaceOrientation) {
+        switch (interfaceOrientation) {
             case UIInterfaceOrientationPortrait:
                 cameraImage = [UIImage imageWithCGImage: [cameraImage CGImage] scale:1.0 orientation:UIImageOrientationRight];
                 break;

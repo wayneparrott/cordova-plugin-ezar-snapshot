@@ -1,3 +1,4 @@
+cordova.define("com.ezartech.ezar.snapshot.snapshot", function(require, exports, module) {
 /**
  * ezar.js
  * Copyright 2015, ezAR Technologies
@@ -23,7 +24,9 @@ module.exports = (function() {
      *
      * options = {
      *   "saveToPhotoAlbum": true, 
-     *   "encoding": _snapshot.ImageEncoding.JPEG }
+     *   "encoding": _snapshot.ImageEncoding.JPEG 
+     *   "includeCameraView": true,
+     *   "includeWebView": true}
      */
     
     _snapshot.snapshot = function(successCallback,errorCallback, options) {
@@ -32,8 +35,10 @@ module.exports = (function() {
         options = options || {};
         var getValue = argscheck.getValue;
         var encoding = getValue(options.encoding, _snapshot.ImageEncoding.JPEG);
-        var saveToPhotoAlbum = !!options.saveToPhotoAlbum;
-        
+        var saveToPhotoAlbum = options.saveToPhotoAlbum === undefined ? true : !!options.saveToPhotoAlbum;
+        var includeCameraView = options.includeCameraView === undefined ? true : !!options.includeCameraView;
+        var includeWebView = options.includeWebView === undefined ? true : !!options.includeWebView;
+                  
         var onSuccess = function(imageData) {
             var encoding = encoding == _snapshot.ImageEncoding.JPEG ? 
                 _snapshot.ImageEncoding.JPEG : _snapshot.ImageEncoding.PNG;
@@ -47,7 +52,7 @@ module.exports = (function() {
              errorCallback,
              "snapshot",
              "snapshot",
-            [encoding, saveToPhotoAlbum]);
+            [encoding, saveToPhotoAlbum, includeCameraView, includeWebView]);
 
     }
                   
@@ -60,3 +65,5 @@ module.exports = (function() {
     return _snapshot;
     
 }());
+
+});

@@ -15,7 +15,7 @@
 #import "MainViewController.h"
 
 //NSString *const EZAR_ERROR_DOMAIN = @"EZAR_SNAPSHOT_ERROR_DOMAIN";
-NSInteger const EZAR_CAMERA_VIEW_TAG = 999;
+NSInteger const EZAR_CAMERA_VIEW_TAGx = 999;
 
 #ifndef __CORDOVA_4_0_0
 #import <Cordova/NSData+Base64.h>
@@ -55,7 +55,7 @@ static NSString* toBase64(NSData* data) {
 
 - (UIImageView *) getCameraView
 {
-    UIImageView* cameraView = (UIImageView *)[self.viewController.view viewWithTag: EZAR_CAMERA_VIEW_TAG];
+    UIImageView* cameraView = (UIImageView *)[self.viewController.view viewWithTag: EZAR_CAMERA_VIEW_TAGx];
     return cameraView;
 }
 
@@ -129,9 +129,26 @@ static NSString* toBase64(NSData* data) {
 // snapshot image if we grab the video frame too quickly.
 - (void) snapshot:(CDVInvokedUrlCommand*)command
 {
+    BOOL includeCameraView = [[command argumentAtIndex:2 withDefault:@(YES)] boolValue];
+    BOOL includeWebView = [[command argumentAtIndex:3 withDefault:@(YES)] boolValue];
+    //NSString* cameraViewBackgroundRGB = [[command argumentAtIndex:4 withDefault:@] boolValue];
+    
+    if (!includeCameraView && !includeWebView) {
+        //error nothing to return
+        NSDictionary* errorResult = [self makeErrorResult: EZAR_ERROR_CODE_INVALID_ARGUMENT
+                                              withData: @"CameraView or WebView must be included"];
+            
+        CDVPluginResult* pluginResult =
+            [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR
+                             messageAsDictionary: errorResult];
+            
+        return  [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    }
+    
     // Find the videoOverlay CameraView
     UIImageView *cameraView = self.getCameraView;
-    if (!cameraView) {
+    if (!includeCameraView || !cameraView) {
+        //capture only WebView
        [self snapshotViewHierarchy:nil cameraView:nil playSound:YES command:command];
         return;
     }
@@ -156,7 +173,6 @@ static NSString* toBase64(NSData* data) {
         if (videoConnection) { break; }
     }
     
-    //workaround for xxx
     //Capture video frame as image. The image will not include the webview content.
     //Temporarily set the cameraView image to the video frame (a jpg) long enough
     //to capture the entire view hierarcy as an image.
@@ -215,33 +231,36 @@ static NSString* toBase64(NSData* data) {
 - (void) snapshotViewHierarchy:(UIImage*)cameraImage cameraView:(UIImageView*)cameraView 
             playSound:(BOOL)shouldPlaySound command:(CDVInvokedUrlCommand*)command
 {
-    BOOL saveToPhotoAlbum = [[command argumentAtIndex:1 withDefault:@(NO)] boolValue];
     EZAR_IMAGE_ENCODING encodingType = [[command argumentAtIndex:0 withDefault:@(EZAR_IMAGE_ENCODING_JPG)] unsignedIntegerValue];
+    BOOL saveToPhotoAlbum = [[command argumentAtIndex:1 withDefault:@(YES)] boolValue];
+    BOOL includeWebView = [[command argumentAtIndex:3 withDefault:@(YES)] boolValue];
     
-    saveToPhotoAlbum = YES;
-    
-    //assign the video frame image to the cameraView image
+    //Assign the video frame image to the cameraView image.
+    //The cameraView.contentMode = UIViewContentModeScaleAspectFill
     if (cameraImage) {
         cameraView.image = cameraImage;
-        cameraView.contentMode = UIViewContentModeScaleAspectFill;
-    }
+    } 
     
     if (shouldPlaySound) {
         //solution from http://stackoverflow.com/questions/5430949/play-iphone-camera-shutter-sound-when-i-click-a-button
         AudioServicesPlaySystemSound(1108);
     }
     
-    //capture the entire view hierarchy
-    UIView *view = self.viewController.view;
-    UIGraphicsBeginImageContextWithOptions(view.bounds.size, YES, 0);
-    [view drawViewHierarchyInRect: view.bounds afterScreenUpdates: YES];
-    UIImage* screenshot = UIGraphicsGetImageFromCurrentImageContext();
-    UIGraphicsEndImageContext();
+    UIImage* screenshot = NULL;
+    
+    if (includeWebView) {
+        //capture the entire view hierarchy
+        UIView *view = self.viewController.view;
+        UIGraphicsBeginImageContextWithOptions(view.bounds.size, YES, 0);
+        [view drawViewHierarchyInRect: view.bounds afterScreenUpdates: YES];
+        screenshot = UIGraphicsGetImageFromCurrentImageContext();
+        UIGraphicsEndImageContext();
+    } else {
+        screenshot = cameraImage;
+    }
     
     //clear camera view image
-    if (cameraImage) {
-        cameraView.image = nil;
-    }
+    cameraView.image = nil;
     
     if (saveToPhotoAlbum) { //save image to gallery
         //todo: handling error saving to photo gallery

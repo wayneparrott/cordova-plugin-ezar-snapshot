@@ -1,4 +1,3 @@
-cordova.define("com.ezartech.ezar.snapshot.snapshot", function(require, exports, module) {
 /**
  * ezar.js
  * Copyright 2015, ezAR Technologies
@@ -66,4 +65,3 @@ module.exports = (function() {
     
 }());
 
-});

@@ -1,5 +1,11 @@
 #ezAR Snapshot Plugin Release Notes
 
+##0.2.2 (20160604)
+Changes:
+1. Added snapshot options 'includeCameraView' from the VideoOverlay plugin and  
+'includeWebView' to control the layers in the snapshot image. 
+
+
 ##0.2.1 (20160310)
 Changes:
 1. Added camera shutter sound for cases when the video overlay is not installed or running on iOS devices.

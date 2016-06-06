@@ -41,6 +41,11 @@ import java.lang.reflect.Method;
 /**
  * Created by Zirk on 2/5/2016.
  */
+//todo clean up:
+// 1) permission impl
+// 2) includeCameraView impl
+// 3) logic assumes camera is running
+
 public class Snapshot extends CordovaPlugin {
 	private static final String TAG = "Snapshot";
 
@@ -56,6 +61,8 @@ public class Snapshot extends CordovaPlugin {
 
 	private CompressFormat  encoding;
 	private boolean saveToPhotoAlbum;
+	private boolean includeCameraView = true;
+	private boolean includeWebView = true;
 	private CallbackContext callbackContext;
 
 	private Bitmap snapshotBitmap;
@@ -73,14 +80,17 @@ public class Snapshot extends CordovaPlugin {
 
     @Override
 	public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
-		Log.v(TAG, action + " " + args.length());
+		Log.d(TAG, action + " " + args.length());
 
 		if (action.equals("snapshot")) {
 			this.callbackContext = callbackContext;
 			int encodingParam = args.getInt(0);  //JPG: 0, PNG: 1
 			this.encoding = encodingParam == 0 ? Bitmap.CompressFormat.JPEG : Bitmap.CompressFormat.PNG;
 			this.saveToPhotoAlbum = args.getBoolean(1);
+			this.includeCameraView = args.getBoolean(2) && getVOPlugin() != null;
+			this.includeWebView = args.getBoolean(3);
 
+			//todo check for includeCameraView & includeWebView == false, which is an error
 			this.snapshot(encoding, saveToPhotoAlbum, callbackContext);
 
 			return true;
@@ -92,12 +102,14 @@ public class Snapshot extends CordovaPlugin {
     private void snapshot(final CompressFormat encoding, final boolean saveToPhotoAlbum, CallbackContext callbackContext) {
 		Log.d(TAG, "snapshot");
 
-		if (getActiveVOCamera() != null) {
+		if (includeCameraView) {
 			if (PermissionHelper.hasPermission(this, permissions[0])) {
 				secureSnapshot(encoding, saveToPhotoAlbum, callbackContext);
 			} else {
 				PermissionHelper.requestPermission(this, CAMERA_SEC, Manifest.permission.CAMERA);
 			}
+		} else {
+			secureSnapshot(encoding, saveToPhotoAlbum, callbackContext);
 		}
 	}
 
@@ -122,55 +134,19 @@ public class Snapshot extends CordovaPlugin {
 	private void secureSnapshot(final CompressFormat encoding, final boolean saveToPhotoAlbum, final CallbackContext callbackContext) {
 		Log.d(TAG, "secureSnapshot");
 
-		Camera camera = getActiveVOCamera();
-		if (camera != null) camera.startPreview();
+		if (includeCameraView) {
+			Camera camera = getActiveVOCamera();
+			if (camera != null) {
+				//why start preview, I don't give a crap if camera is running or not
+				camera.startPreview();
+			}
+		}
 
-		buildAndSaveSnapshotImageXXX(encoding, saveToPhotoAlbum, true, isVOPluginInstalled(), callbackContext);
-
-//		Camera voCamera = getActiveVOCamera();
-//		if (voCamera == null) {
-//			buildAndSaveSnapshotImage(encoding, saveToPhotoAlbum, true,  null, voCamera, callbackContext);
-//			return;
-//		}
-//
-//		Camera.Parameters cameraParameters = voCamera.getParameters();
-//		Camera.Size sz = cameraParameters.getPictureSize();
-//		Log.v(TAG, "snapshot picture size:  " + sz.width + ":" + sz.height);
-//
-//		if (updateCameraPicOrientation(cameraParameters)) {
-//			voCamera.setParameters(cameraParameters);
-//		}
-//
-//		try {
-//			//otherwise get image frame from video stream
-//			voCamera.takePicture(
-//					new Camera.ShutterCallback() {
-//						@Override
-//						public void onShutter() {
-//							mSound.play(MediaActionSound.SHUTTER_CLICK);
-//						}
-//					},
-//					null, null,
-//					new Camera.PictureCallback() {
-//						@Override
-//						public void onPictureTaken(byte[] data, final Camera camera) {
-//							buildAndSaveSnapshotImageXXX(encoding,
-//									saveToPhotoAlbum,
-//									false,
-//									data,
-//									camera,
-//									callbackContext);
-//						}
-//					}
-//			);
-//		} catch( Exception ex) {
-//			ex.printStackTrace();
-//		}
+		buildAndSaveSnapshotImage(encoding, saveToPhotoAlbum, true, callbackContext);
 	}
 
-	private void buildAndSaveSnapshotImageXXX(final CompressFormat format, final boolean saveToGallery,
+	private void buildAndSaveSnapshotImage(final CompressFormat format, final boolean saveToGallery,
 										   final boolean playSound,
-										   final boolean includeVideoFrame,
 										   final CallbackContext callbackContext) {
 
 
@@ -195,40 +171,39 @@ public class Snapshot extends CordovaPlugin {
 				//create webView imageData
 				Bitmap webViewBitmap = Bitmap.createBitmap(webViewWidth, webViewHt, Bitmap.Config.ARGB_8888);
 				Canvas webViewCanvas = new Canvas(webViewBitmap);
-				webViewView.draw(webViewCanvas);
+				if (includeWebView) webViewView.draw(webViewCanvas);
 
 				Bitmap resultBitmap = null;
 				Canvas resultCanvas = null;
 
-				if (includeVideoFrame) {
+				if (includeCameraView) {
 
 					TextureView cameraView = getVOCameraView();
 					Bitmap scaledVideoFrameBitmap = cameraView.getBitmap();
 
 					Log.d(TAG, "scaledVideoFrameBitmap2,  w: " + scaledVideoFrameBitmap.getWidth() + ": " + scaledVideoFrameBitmap.getHeight());
 
-//					resultBitmap = scaledVideoFrameBitmap;
 
-					//create new resultBitmap, set its bounds to cip to webview rect, draw videoFrameBitmap onto it
+					//create new resultBitmap, set its bounds to clip to webview rect, draw videoFrameBitmap onto it
 					resultBitmap = Bitmap.createBitmap(webViewWidth, webViewHt, Bitmap.Config.ARGB_8888);
 					resultCanvas = new Canvas(resultBitmap);
 					Rect dstRect = new Rect();
 					resultCanvas.getClipBounds(dstRect);
 					resultCanvas.drawBitmap(scaledVideoFrameBitmap, dstRect, dstRect, null);
-					//scaledVideoFrameBitmap = null;
 
-					//draw webviewBitmap on top of videoFrameBitmap, i.e., resultBitmap in the resultCanvas
-					try {
-						Paint p = new Paint();
-						p.setAlpha(255);
-						p.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP));
-						resultCanvas.drawBitmap(webViewBitmap, null, dstRect, p);
+					if (includeWebView) {
+						//draw webviewBitmap on top of videoFrameBitmap, i.e., resultBitmap in the resultCanvas
+						try {
+							Paint p = new Paint();
+							p.setAlpha(255);
+							p.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP));
+							resultCanvas.drawBitmap(webViewBitmap, null, dstRect, p);
 
-					} catch (Exception ex) {
-						ex.printStackTrace();
+						} catch (Exception ex) {
+							ex.printStackTrace();
+						}
 					}
 				} else {
-					//no videoFrameset webviewBitmap as the result
 					resultBitmap = webViewBitmap;
 				}
 
@@ -250,254 +225,8 @@ public class Snapshot extends CordovaPlugin {
 				webViewBitmap = null;
 				webViewCanvas = null;
 				imageEncoded = null;
-
-			}
-		}); //post
-	}
-
-
-	private void buildAndSaveSnapshotImageXXXxxx(final CompressFormat format, final boolean saveToGallery,
-											  final boolean playSound,
-											  final byte[] videoFrameData,
-											  final Camera camera,
-											  final CallbackContext callbackContext) {
-
-		final boolean includeVideoFrame = !(videoFrameData == null || camera == null);
-
-		//resume preview after it automatically stopped during takePicture()
-		if (includeVideoFrame) {
-			camera.startPreview();
-		}
-
-		webViewView.getRootView().post(new Runnable() {
-			@Override
-			public void run() {
-
-				if (playSound) {
-					mSound.play(MediaActionSound.SHUTTER_CLICK);
-				}
-
-				int webViewWidth = webViewView.getWidth();
-				int webViewHt = webViewView.getHeight();
-
-				//webViewWidth = 1920;
-				Log.d(TAG, "WebView width: " + webViewWidth + "  ht: " + webViewHt);
-
-				//create webView imageData
-				Bitmap webViewBitmap = Bitmap.createBitmap(webViewWidth, webViewHt, Bitmap.Config.ARGB_8888);
-				Canvas webViewCanvas = new Canvas(webViewBitmap);
-				webViewView.draw(webViewCanvas);
-
-				Bitmap resultBitmap = null;
-				Canvas resultCanvas = null;
-
-				Bitmap crap = null;
-				if (includeVideoFrame) {
-					Bitmap rawVideoFrameBitmap = BitmapFactory.decodeByteArray(videoFrameData, 0, videoFrameData.length);
-					int videoFrameWidth = rawVideoFrameBitmap.getWidth();
-					int videoFrameHt = rawVideoFrameBitmap.getHeight();
-
-//					if (isPortraitOrientation()) {
-//						videoFrameWidth = rawVideoFrameBitmap.getHeight();
-//						videoFrameHt = rawVideoFrameBitmap.getWidth();
-//					}
-
-					Log.d(TAG, "build snapshot,  videoframe w: " + videoFrameWidth + "  h: " + videoFrameHt);
-
-					//fit videoFrame bitmap into webView rect
-					//try horizontal fit
-					float scaleX = (float) webViewWidth / (float) videoFrameWidth;
-					int scaledVideoFrameHt = (int) (scaleX * (float) videoFrameHt);
-					int scaledVideoFrameHtDelta = scaledVideoFrameHt - webViewHt;
-
-					//try vertical fit
-					float scaleY = (float) webViewHt / (float) videoFrameHt;
-					int scaledVideoFrameWidth = (int) (scaleY * (float) videoFrameWidth);
-					int scaledVideoFrameWidthDelta = scaledVideoFrameWidth - webViewWidth;
-
-					//select the smallest scaled dimension > than the corresponding webView dimension
-					float scale = 1.0f;
-					if (0 < scaledVideoFrameHtDelta && scaledVideoFrameWidthDelta < scaledVideoFrameHtDelta) {
-						scale = scaleX;
-						scaledVideoFrameWidth = webViewWidth;
-					} else {
-						scale = scaleY;
-						scaledVideoFrameHt = webViewHt;
-					}
-
-					crap = rawVideoFrameBitmap;
-
-//					float scaleX = 1.0f;
-//					float scaleY = 1.3214285f;
-////					if (isPortraitOrientation()) {
-////						scaleX = (float) webViewHt / (float) previewHeight * (float) previewWidth / (float) webViewWidth;
-////					} else {
-////						scaleY = (float) webViewWidth / (float) previewWidth * (float) previewHeight / (float) webViewHt;
-////					}
-
-					Bitmap scaledVideoFrameBitmap =
-							Bitmap.createScaledBitmap(
-									rawVideoFrameBitmap,
-									scaledVideoFrameWidth,
-									scaledVideoFrameHt,
-									true);
-
-					Log.d(TAG, "scale: " + scale);
-					Log.d(TAG, "scaledVideoFrameBitmap,  w: " + scaledVideoFrameBitmap.getWidth() + ": " + scaledVideoFrameBitmap.getHeight());
-
-					int startX = (scaledVideoFrameWidth - webViewWidth) / 2;
-					int startY = (scaledVideoFrameHt - webViewHt) / 2;
-					scaledVideoFrameBitmap =
-							Bitmap.createBitmap(
-									scaledVideoFrameBitmap,
-									startX, startY,
-									webViewWidth, webViewHt,
-									new Matrix(),
-									false);
-
-					Log.d(TAG, "FinalScaledVideoFrameBitmap,  w: " + scaledVideoFrameBitmap.getWidth() + ": " + scaledVideoFrameBitmap.getHeight());
-
-//					scaledVideoFrameBitmap =
-//						Bitmap.createScaledBitmap(
-//								rawVideoFrameBitmap,
-//								scaledVideoFrameWidth,
-//								webViewHt,
-//								true);
-
-//					Log.d(TAG, "scaledVideoFrameBitmap2,  w: " + scaledVideoFrameBitmap.getWidth() + ": " + scaledVideoFrameBitmap.getHeight());
-
-					//create new resultBitmap, set its bounds to cip to webview rect, draw videoFrameBitmap onto it
-					resultBitmap = Bitmap.createBitmap(webViewWidth, webViewHt, Bitmap.Config.ARGB_8888);
-					resultCanvas = new Canvas(resultBitmap);
-					Rect dstRect = new Rect();
-					resultCanvas.getClipBounds(dstRect);
-					resultCanvas.drawBitmap(scaledVideoFrameBitmap, dstRect, dstRect, null);
-					scaledVideoFrameBitmap = null;
-
-					//draw webviewBitmap on top of videoFrameBitmap, i.e., resultBitmap in the resultCanvas
-					try {
-						Paint p = new Paint();
-						p.setAlpha(255);
-						p.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP));
-						resultCanvas.drawBitmap(webViewBitmap, null, dstRect, p);
-
-					} catch (Exception ex) {
-						ex.printStackTrace();
-					}
-				} else {
-					//no videoFrameset webviewBitmap as the result
-					resultBitmap = webViewBitmap;
-				}
-
-				if (saveToGallery) {
-					//save snapshot image to gallery
-//					String url = saveToMediaStore(resultBitmap);
-					String url = saveToMediaStore(crap);
-					Log.i(TAG, "SAVED image: " + url);
-				}
-
-				//
-				String imageEncoded = encodeImageData(resultBitmap, format);
-
-				callbackContext.success(imageEncoded);
-
-				resultBitmap = null;
-				resultCanvas = null;
-				webViewBitmap = null;
-				webViewCanvas = null;
-				imageEncoded = null;
-
-			}
-		}); //post
-	}
-
-	private void buildAndSaveSnapshotImage(final CompressFormat format, final boolean saveToGallery,
-										   final boolean playSound,
-										   final byte[] videoFrameData,
-										   final Camera camera,
-										   final CallbackContext callbackContext) {
-
-		final boolean includeVideoFrame = !(videoFrameData == null || camera == null);
-
-		//resume preview after it automatically stopped during takePicture()
-		if (includeVideoFrame) {
-			camera.startPreview();
-		}
-
-		webViewView.getRootView().post(new Runnable() {
-			@Override
-			public void run() {
-
-				if (playSound) {
-					mSound.play(MediaActionSound.SHUTTER_CLICK);
-				}
-
-				int webViewWidth = webViewView.getWidth();
-				int webViewHt = webViewView.getHeight();
-				Log.d(TAG, "WebView width: " + webViewWidth + "  ht: " + webViewHt);
-
-				//create webView imageData
-				Bitmap webViewBitmap = Bitmap.createBitmap(webViewWidth, webViewHt, Bitmap.Config.ARGB_8888);
-				Canvas webViewCanvas = new Canvas(webViewBitmap);
-				webViewView.draw(webViewCanvas);
-
-				Bitmap resultBitmap = null;
-				Canvas resultCanvas = null;
-
-				if (includeVideoFrame) {
-
-					Bitmap rawVideoFrameBitmap = BitmapFactory.decodeByteArray(videoFrameData, 0, videoFrameData.length);
-					int videoFrameWidth = rawVideoFrameBitmap.getWidth();
-					int videoFrameHt = rawVideoFrameBitmap.getHeight();
-					Log.d(TAG, "build snapshot,  videoframe w: " + videoFrameWidth + "  h: " + videoFrameHt);
-
-					//fit videoFrame bitmap into webView rect
-
-
-//					Bitmap videoFrameBitmap = Bitmap.createBitmap(rawVideoFrameBitmap, 0, 0, w, h, mtx, true);
-					Bitmap videoFrameBitmap = Bitmap.createBitmap(rawVideoFrameBitmap, 0, 0, videoFrameWidth, videoFrameHt);
-					rawVideoFrameBitmap = null;
-
-					//create new resultBitmap, set its bounds to cip to webview rect, draw videoFrameBitmap onto it
-					resultBitmap = Bitmap.createBitmap(webViewWidth, webViewHt, Bitmap.Config.ARGB_8888);
-					resultCanvas = new Canvas(resultBitmap);
-					Rect dstRect = new Rect();
-					resultCanvas.getClipBounds(dstRect);
-					resultCanvas.drawBitmap(videoFrameBitmap, null, dstRect, null);
-					videoFrameBitmap = null;
-
-					//draw webviewBitmap on top of videoFrameBitmap, i.e., resultBitmap in the resultCanvas
-					try {
-						Paint p = new Paint();
-						p.setAlpha(255);
-						p.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP));
-						resultCanvas.drawBitmap(webViewBitmap, null, dstRect, p);
-
-					} catch (Exception ex) {
-						ex.printStackTrace();
-					}
-				} else {
-					//no videoFrameset webviewBitmap as the result
-					resultBitmap = webViewBitmap;
-				}
-
-				if (saveToGallery) {
-					//save snapshot image to gallery
-					String url = saveToMediaStore(resultBitmap);
-					Log.i(TAG, "SAVED image: " + url);
-				}
-
-				//
-				String imageEncoded = encodeImageData(resultBitmap, format);
-
-				callbackContext.success(imageEncoded);
-
-				resultBitmap = null;
-				resultCanvas = null;
-				webViewBitmap = null;
-				webViewCanvas = null;
-				imageEncoded = null;
-
+				includeCameraView = true;
+				includeWebView = true;
 			}
 		}); //post
 	}
@@ -576,47 +305,6 @@ public class Snapshot extends CordovaPlugin {
 
 		return true;
 	}
-
-//	private Matrix computePictureTransform(int width, int height) {
-//		Log.d(TAG, "computePICTURETransform, width: " + width + " ht: " + height);
-//
-//		Camera.Parameters cameraParameters = camera.getParameters();
-//		Camera.Size sz = cameraParameters.getPictureSize();
-//		Log.d(TAG, "computePICTURETransform, pic width: " + sz.width + " pic ht: " + sz.height);
-//
-//		boolean isPortrait = false;
-//
-//		Display display = activity.getWindowManager().getDefaultDisplay();
-//		if (display.getRotation() == Surface.ROTATION_0 || display.getRotation() == Surface.ROTATION_180)
-//			isPortrait = true;
-//		else if (display.getRotation() == Surface.ROTATION_90 || display.getRotation() == Surface.ROTATION_270)
-//			isPortrait = false;
-//
-//		int previewWidth = previewSizePair.pictureSize.width;
-//		int previewHeight = previewSizePair.pictureSize.height;
-//
-//		if (isPortrait) {
-//			previewWidth = previewSizePair.pictureSize.height;
-//			previewHeight = previewSizePair.pictureSize.width;
-//		}
-//		float scaleX = 1;
-//		float scaleY = 1;
-//
-//		if (isPortrait) {
-//			scaleX = (float) height / (float) previewHeight * (float) previewWidth / (float) width;
-//		} else {
-//			scaleY = (float) width / (float) previewWidth * (float) previewHeight / (float) height;
-//		}
-//
-//		scaleX = 1.0f;
-//
-//		Log.d(TAG, "computeMatrix, scaledX: " + scaleX + " scaleY: " + scaleY);
-//
-//		Matrix matrix = new Matrix();
-//		matrix.setScale(scaleX, scaleY);
-//
-//		return matrix;
-//	}
 
 	//----------------------------------------------------------------------------
 	private boolean isVOPluginInstalled() {

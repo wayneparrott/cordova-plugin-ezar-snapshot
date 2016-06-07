@@ -1,14 +1,11 @@
 #ezAR Snapshot Plugin Release Notes
 
 ##0.2.2 (20160606)
-Changes:
-1. Fixed distorted image on first snapshot for iOS devices. 
-You must update the VideoOverlay plugin in your project to 0.2.4 or greater for 
+Changes
+1. Fixed distorted image on first snapshot for iOS devices. You must update the VideoOverlay plugin in your project to 0.2.4 or greater for 
 this fix to take effect.
-2. Added snapshot options 'includeCameraView' from the VideoOverlay plugin and  
-'includeWebView' to control the layers in the snapshot image.
-3. When 'includeCameraView' is false, the snapshot image background is set to 
-the videoOverlay background property
+2. Added snapshot options 'includeCameraView' from the VideoOverlay plugin and  'includeWebView' to control the layers in the snapshot image.
+3. When 'includeCameraView' is false, the snapshot image background is set to  the videoOverlay background property
 4. A black image the size of the display is returned when both the cameraVieaw 
 and webView are omitted.  
 

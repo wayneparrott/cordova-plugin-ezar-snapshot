@@ -56,6 +56,8 @@ public class Snapshot extends CordovaPlugin {
 	public final static int CAMERA_SEC = 0;
 	public final static int SAVE_TO_ALBUM_SEC = 1;
 
+	public final static int DEFAULT_BACKGROUND_COLOR = Color.WHITE;
+
 	private View webViewView;
 	private MediaActionSound mSound;
 
@@ -171,7 +173,12 @@ public class Snapshot extends CordovaPlugin {
 				//create webView imageData
 				Bitmap webViewBitmap = Bitmap.createBitmap(webViewWidth, webViewHt, Bitmap.Config.ARGB_8888);
 				Canvas webViewCanvas = new Canvas(webViewBitmap);
-				if (includeWebView) webViewView.draw(webViewCanvas);
+				if (includeWebView) {
+					if (!includeCameraView) {
+						webViewCanvas.drawColor(getBackgroundColor());
+					}
+					webViewView.draw(webViewCanvas);
+				}
 
 				Bitmap resultBitmap = null;
 				Canvas resultCanvas = null;
@@ -424,4 +431,39 @@ public class Snapshot extends CordovaPlugin {
 		return view;
 	}
 
+	private int getBackgroundColor() {
+		//reflectively access VideoOverlay plugin to get background property
+
+		int color = DEFAULT_BACKGROUND_COLOR;
+
+		CordovaPlugin voPlugin = getVOPlugin();
+		if (voPlugin == null) {
+			return color;
+		}
+
+		Method method = null;
+
+		try {
+			method = voPlugin.getClass().getMethod("getBackgroundColor");
+		} catch (SecurityException e) {
+			//e.printStackTrace();
+		} catch (NoSuchMethodException e) {
+			//e.printStackTrace();
+		}
+
+		try {
+			if (method == null) return color;
+
+			color = (Integer)method.invoke(voPlugin);
+
+		} catch (IllegalArgumentException e) { // exception handling omitted for brevity
+			//e.printStackTrace();
+		} catch (IllegalAccessException e) { // exception handling omitted for brevity
+			//e.printStackTrace();
+		} catch (InvocationTargetException e) { // exception handling omitted for brevity
+			//e.printStackTrace();
+		}
+
+		return color;
+	}
 }

@@ -4,13 +4,8 @@
 -->
 <plugin xmlns="http://cordova.apache.org/ns/plugins/1.0"
 	  xmlns:android="http://schemas.android.com/apk/res/android"
-<<<<<<< HEAD
-	  id="com.ezartech.ezar.facedetector"
-	  version="0.0.1">
-=======
 	  id="com.ezartech.ezar.snapshot"
 	  version="0.2.2">
->>>>>>> refs/remotes/origin/dev
 	  
 	<name>ezAR Face Detector</name>
 	<description>Detect human faces in video preview data from the videooverlay plugin 

@@ -34,7 +34,11 @@ module.exports = (function() {
         options = options || {};
         var getValue = argscheck.getValue;
         var encoding = getValue(options.encoding, _snapshot.ImageEncoding.JPEG);
-        var saveToPhotoAlbum = options.saveToPhotoAlbum === undefined ? true : !!options.saveToPhotoAlbum;
+        var saveToPhotoGallery = options.saveToPhotoGallery === undefined ? true : !!options.saveToPhotoGallery;
+        
+        //deprecated saveToPhotoAlbum but temp support for 2016
+        saveToPhotoGallery = options.saveToPhotoAlbum === undefined ? saveToPhotoGallery : !!options.saveToPhotoAlbum;
+        
         var includeCameraView = options.includeCameraView === undefined ? true : !!options.includeCameraView;
         var includeWebView = options.includeWebView === undefined ? true : !!options.includeWebView;
                   
@@ -51,7 +55,7 @@ module.exports = (function() {
              errorCallback,
              "snapshot",
              "snapshot",
-            [encoding, saveToPhotoAlbum, includeCameraView, includeWebView]);
+            [encoding, saveToPhotoGallery, includeCameraView, includeWebView]);
 
     }
                   

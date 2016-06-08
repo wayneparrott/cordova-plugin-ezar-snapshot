@@ -76,6 +76,21 @@ static NSString* toBase64(NSData* data) {
     return !![self getVideoOverlayPlugin];
 }
 
+-(UIColor *) getBackgroundColor
+{
+    UIColor * result = NULL;
+    
+    if (![self hasVideoOverlayPlugin]) {
+        return result;
+    }
+    
+    // Find background color
+    NSString* methodName = @"getBackgroundColor";
+    SEL selector = NSSelectorFromString(methodName);
+    result = (UIColor *)[[self getVideoOverlayPlugin] performSelector:selector];
+    
+    return result;
+}
 
 -(BOOL) isCameraRunning
 {
@@ -129,21 +144,25 @@ static NSString* toBase64(NSData* data) {
 // snapshot image if we grab the video frame too quickly.
 - (void) snapshot:(CDVInvokedUrlCommand*)command
 {
-    BOOL includeCameraView = [[command argumentAtIndex:2 withDefault:@(YES)] boolValue];
-    BOOL includeWebView = [[command argumentAtIndex:3 withDefault:@(YES)] boolValue];
+    BOOL includeCameraView =
+        [[command argumentAtIndex:2 withDefault:@(YES)] boolValue] &&
+        [self hasVideoOverlayPlugin];
+    
+    
+    //BOOL includeWebView = [[command argumentAtIndex:3 withDefault:@(YES)] boolValue];
     //NSString* cameraViewBackgroundRGB = [[command argumentAtIndex:4 withDefault:@] boolValue];
     
-    if (!includeCameraView && !includeWebView) {
-        //error nothing to return
-        NSDictionary* errorResult = [self makeErrorResult: EZAR_ERROR_CODE_INVALID_ARGUMENT
-                                              withData: @"CameraView or WebView must be included"];
-            
-        CDVPluginResult* pluginResult =
-            [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR
-                             messageAsDictionary: errorResult];
-            
-        return  [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    }
+//    if (!includeCameraView && !includeWebView) {
+//        //error nothing to return
+//        NSDictionary* errorResult = [self makeErrorResult: EZAR_ERROR_CODE_INVALID_ARGUMENT
+//                                              withData: @"CameraView or WebView must be included"];
+//            
+//        CDVPluginResult* pluginResult =
+//            [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR
+//                             messageAsDictionary: errorResult];
+//            
+//        return  [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+//    }
     
     // Find the videoOverlay CameraView
     UIImageView *cameraView = self.getCameraView;
@@ -237,9 +256,9 @@ static NSString* toBase64(NSData* data) {
     
     //Assign the video frame image to the cameraView image.
     //The cameraView.contentMode = UIViewContentModeScaleAspectFill
-    if (cameraImage) {
+    //if (cameraImage) {
         cameraView.image = cameraImage;
-    } 
+    //}
     
     if (shouldPlaySound) {
         //solution from http://stackoverflow.com/questions/5430949/play-iphone-camera-shutter-sound-when-i-click-a-button
@@ -252,11 +271,23 @@ static NSString* toBase64(NSData* data) {
         //capture the entire view hierarchy
         UIView *view = self.viewController.view;
         UIGraphicsBeginImageContextWithOptions(view.bounds.size, YES, 0);
+        CGContextRef context = UIGraphicsGetCurrentContext();
+        CGContextSetFillColorWithColor(context,[[UIColor greenColor] CGColor]);
         [view drawViewHierarchyInRect: view.bounds afterScreenUpdates: YES];
         screenshot = UIGraphicsGetImageFromCurrentImageContext();
         UIGraphicsEndImageContext();
-    } else {
+    } else if (cameraImage) {
         screenshot = cameraImage;
+    } else {
+        //create an empty image
+        UIView *view = self.viewController.view;
+        CGRect rect = view.bounds;
+        UIGraphicsBeginImageContext(rect.size);
+        CGContextRef context = UIGraphicsGetCurrentContext();
+        CGContextSetFillColorWithColor(context,[[UIColor blackColor] CGColor]);
+        CGContextFillRect(context, rect);
+        screenshot = UIGraphicsGetImageFromCurrentImageContext();
+        UIGraphicsEndImageContext();
     }
     
     //clear camera view image

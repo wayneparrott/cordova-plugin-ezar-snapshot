@@ -4,24 +4,32 @@
 -->
 <plugin xmlns="http://cordova.apache.org/ns/plugins/1.0"
 	  xmlns:android="http://schemas.android.com/apk/res/android"
+<<<<<<< HEAD
+	  id="com.ezartech.ezar.facedetector"
+	  version="0.0.1">
+=======
 	  id="com.ezartech.ezar.snapshot"
 	  version="0.2.2">
+>>>>>>> refs/remotes/origin/dev
 	  
-	<name>ezAR Snapshot</name>
-	<description>Capture an image in JPG or PNG format of the application UI and optionally save it to 
-	             the device image gallery. Works with ezAR to include the camera preview background
-				 of the webview.  
+	<name>ezAR Face Detector</name>
+	<description>Detect human faces in video preview data from the videooverlay plugin 
 	</description>
-	<keywords>snapshot, screenshot</keywords>
+	<keywords>face detection</keywords>
 	<license>modified MIT License, see http://ezartech.com/ezarstartupkit-license</license>
 
 	<!-- web api -->
-	<js-module src="www/snapshot.js" name="snapshot">
+    <js-module src="www/FaceInfo.js" name="FaceInfo">
+        <clobbers target="FaceInfo" />
+    </js-module>
+    
+	<js-module src="www/facedetector.js" name="facedetector">
 		<merges target="ezar" />
 	</js-module>
 	
 	
 	<!-- ios -->
+    <!--
 	<platform name="ios">
 		
 		<config-file target="config.xml" parent="/*">
@@ -39,22 +47,17 @@
 		<framework src="CoreImage.framework" />
 		<framework src="CoreVideo.framework" />
         <framework src="AudioToolbox.framework" />
-	</platform>
-
+	  </platform>
+      -->
+      
 	<!-- android -->
 	<platform name="android">
 	  <config-file parent="/*" target="res/xml/config.xml">
-		 <feature name="snapshot">
-			<param name="android-package" value="com.ezartech.ezar.snapshot.Snapshot" />
+		 <feature name="facedetector">
+			<param name="android-package" value="com.ezartech.ezar.facedetector.FaceDetector" />
 		 </feature>
 	  </config-file>
-      <config-file parent="/*" target="AndroidManifest.xml" >
-            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-            <uses-permission android:name="android.permission.CAMERA" />
-			<uses-feature android:name="android.hardware.camera.any" />		
-	  </config-file>
-	  <source-file src="src/android/Snapshot.java" target-dir="src/com/ezartech/ezar/snapshot" />
-      <source-file src="src/android/PermissionHelper.java" target-dir="src/com/ezartech/ezar/snapshot" />
+	  <source-file src="src/android/FaceDetector.java" target-dir="src/com/ezartech/ezar/facedetector" />
   </platform>
   
 </plugin>

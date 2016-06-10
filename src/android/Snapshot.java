@@ -42,6 +42,7 @@ import java.lang.reflect.Method;
  * Created by Zirk on 2/5/2016.
  */
 //todo clean up:
+// 0) clear state between exec calls from js
 // 1) permission impl
 // 2) includeCameraView impl
 // 3) logic assumes camera is running
@@ -68,7 +69,14 @@ public class Snapshot extends CordovaPlugin {
 	private CallbackContext callbackContext;
 
 	private Bitmap snapshotBitmap;
+	private String saveToMediaStoreUrl;
 
+	enum ActionContext {
+		SNAPSHOT,
+		SAVE_TO_GALLERY
+	};
+
+	private ActionContext actionContext = null;
 
 	@Override
 	public void initialize(final CordovaInterface cordova, final CordovaWebView cvWebView) {
@@ -84,8 +92,10 @@ public class Snapshot extends CordovaPlugin {
 	public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
 		Log.d(TAG, action + " " + args.length());
 
+		this.callbackContext = callbackContext;
+		
 		if (action.equals("snapshot")) {
-			this.callbackContext = callbackContext;
+			actionContext = ActionContext.SNAPSHOT;
 			int encodingParam = args.getInt(0);  //JPG: 0, PNG: 1
 			this.encoding = encodingParam == 0 ? Bitmap.CompressFormat.JPEG : Bitmap.CompressFormat.PNG;
 			this.saveToPhotoAlbum = args.getBoolean(1);
@@ -96,23 +106,13 @@ public class Snapshot extends CordovaPlugin {
 			this.snapshot(encoding, saveToPhotoAlbum, callbackContext);
 
 			return true;
+		} else if (action.equals("saveToPhotoGallery")) {
+			actionContext = ActionContext.SAVE_TO_GALLERY;
+			String imageData = args.getString(0);
+			this.saveToPhotoGallery(imageData);
+			return true; 
 		}
-
 		return false;
-	}
-    
-    private void snapshot(final CompressFormat encoding, final boolean saveToPhotoAlbum, CallbackContext callbackContext) {
-		Log.d(TAG, "snapshot");
-
-		if (includeCameraView) {
-			if (PermissionHelper.hasPermission(this, permissions[0])) {
-				secureSnapshot(encoding, saveToPhotoAlbum, callbackContext);
-			} else {
-				PermissionHelper.requestPermission(this, CAMERA_SEC, Manifest.permission.CAMERA);
-			}
-		} else {
-			secureSnapshot(encoding, saveToPhotoAlbum, callbackContext);
-		}
 	}
 
 	//copied from Apache Cordova plugin
@@ -132,6 +132,31 @@ public class Snapshot extends CordovaPlugin {
 				break;
 		}
 	}
+
+    private void snapshot(final CompressFormat encoding, final boolean saveToPhotoAlbum, CallbackContext callbackContext) {
+		Log.d(TAG, "snapshot");
+
+		if (includeCameraView) {
+			if (PermissionHelper.hasPermission(this, permissions[0])) {
+				secureSnapshot(encoding, saveToPhotoAlbum, callbackContext);
+			} else {
+				PermissionHelper.requestPermission(this, CAMERA_SEC, Manifest.permission.CAMERA);
+			}
+		} else {
+			secureSnapshot(encoding, saveToPhotoAlbum, callbackContext);
+		}
+	}
+
+	private void saveToPhotoGallery(String imageData) {
+		byte[] decodedBytes = Base64.decode(imageData, 0);
+		snapshotBitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+		if (snapshotBitmap == null) {
+			callbackContext.error("Unable to convert image data to image");
+			return;
+		}
+		saveToMediaStore();
+	}
+
 
 	private void secureSnapshot(final CompressFormat encoding, final boolean saveToPhotoAlbum, final CallbackContext callbackContext) {
 		Log.d(TAG, "secureSnapshot");
@@ -218,11 +243,7 @@ public class Snapshot extends CordovaPlugin {
 				String imageEncoded = encodeImageData(resultBitmap, format);
 
 				if (saveToGallery) {
-					if (PermissionHelper.hasPermission(plugin, permissions[1])) {
-						saveToMediaStore();
-					} else {
-						PermissionHelper.requestPermission(plugin, SAVE_TO_ALBUM_SEC, Manifest.permission.WRITE_EXTERNAL_STORAGE);
-					}
+					saveToMediaStore();
 				}
 
 				callbackContext.success(imageEncoded);
@@ -238,9 +259,18 @@ public class Snapshot extends CordovaPlugin {
 		}); //post
 	}
 
+
 	private void saveToMediaStore() {
-		saveToMediaStore(snapshotBitmap);
-		snapshotBitmap = null;
+		if (PermissionHelper.hasPermission(this, permissions[1])) {
+			saveToMediaStoreUrl = saveToMediaStore(snapshotBitmap);
+			if (actionContext == ActionContext.SAVE_TO_GALLERY) {
+				callbackContext.success(saveToMediaStoreUrl);
+			}
+			snapshotBitmap = null;
+		} else {
+			PermissionHelper.requestPermission(this, SAVE_TO_ALBUM_SEC, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+		}
+
 	}
 
 	private String saveToMediaStore(Bitmap imageData) {

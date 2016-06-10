@@ -34,8 +34,9 @@ module.exports = (function() {
 
         //options impl inspired by cordova Camera plugin
         options = options || {};
-        var getValue = argscheck.getValue;
-        var encoding = getValue(options.encoding, _snapshot.ImageEncoding.JPEG);
+        var encoding = argscheck.getValue(options.encoding, _snapshot.ImageEncoding.JPEG);
+        var quality = argscheck.getValue(options.quality, 100);
+        var scale = argscheck.getValue(options.scale, 100);
         var saveToPhotoGallery = options.saveToPhotoGallery === undefined ? true : !!options.saveToPhotoGallery;
         
         //deprecated saveToPhotoAlbum but temp support for 2016
@@ -57,7 +58,7 @@ module.exports = (function() {
              errorCallback,
              "snapshot",
              "snapshot",
-            [encoding, saveToPhotoGallery, includeCameraView, includeWebView]);
+            [encoding, quality, scale, saveToPhotoGallery, includeCameraView, includeWebView]);
 
     }
 

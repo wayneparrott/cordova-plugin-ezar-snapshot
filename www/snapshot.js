@@ -17,7 +17,7 @@ module.exports = (function() {
            
 	 //--------------------------------------
     var _snapshot = {};
-        
+
     /**
      * Create a screenshot image
      *
@@ -29,7 +29,9 @@ module.exports = (function() {
      */
     
     _snapshot.snapshot = function(successCallback,errorCallback, options) {
-                  
+                
+        argscheck.checkArgs('FFO', 'ezar.snapshot', arguments);        
+
         //options impl inspired by cordova Camera plugin
         options = options || {};
         var getValue = argscheck.getValue;
@@ -58,6 +60,25 @@ module.exports = (function() {
             [encoding, saveToPhotoGallery, includeCameraView, includeWebView]);
 
     }
+
+     _snapshot.saveToPhotoGallery = function(imageData,successCallback,errorCallback) {
+                
+        argscheck.checkArgs('SFF', 'ezar.saveToPhotoGallery', arguments); 
+        if (!imageData || !imageData.startsWith('data:image')) {
+            if (errorCallback) {
+                errorCallback('ImageData is not in base64 image format');
+                return;
+            }
+        }
+        var startIdx = 'data:image/X;base64,'.length;
+        imageData = imageData.substring(startIdx);
+
+        exec(successCallback,
+             errorCallback,
+             "snapshot",
+             "saveToPhotoGallery",
+            [imageData]);
+     }
                   
     _snapshot.ImageEncoding = {
         JPEG: 0,             // Return JPEG encoded image

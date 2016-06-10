@@ -313,6 +313,23 @@ static NSString* toBase64(NSData* data) {
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
+- (void) saveToPhotoGallery:(CDVInvokedUrlCommand*)command {
+    NSString* imageDataString = [command argumentAtIndex:0];
+    
+    // NSData from the Base64 encoded str
+    NSData *imageData =
+        [[NSData alloc] initWithBase64EncodedString:imageDataString options:0];
+    
+    UIImage *image = [UIImage imageWithData:imageData];
+    
+    //todo: handling error saving to photo gallery
+    UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil);
+    
+    CDVPluginResult* pluginResult =
+        [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString: @""];
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+}
+
 typedef NS_ENUM(NSUInteger, EZAR_ERROR_CODE) {
     EZAR_ERROR_CODE_ERROR=1,
     EZAR_ERROR_CODE_INVALID_ARGUMENT,

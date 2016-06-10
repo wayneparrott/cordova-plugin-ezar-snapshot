@@ -21,6 +21,7 @@
 @interface CDVezARSnapshot : CDVPlugin
 
 - (void) snapshot:(CDVInvokedUrlCommand*)command;
+- (void) saveToPhotoGallery:(CDVInvokedUrlCommand*)command;
 
 @end
 

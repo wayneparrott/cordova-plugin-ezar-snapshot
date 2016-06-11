@@ -24,6 +24,8 @@ module.exports = (function() {
      * options = {
      *   "saveToPhotoAlbum": true, 
      *   "encoding": _snapshot.ImageEncoding.JPEG 
+     *   "quality": 100,  only applys for jpeg encoding
+     *   "scale": 100,
      *   "includeCameraView": true,
      *   "includeWebView": true}
      */
@@ -38,12 +40,11 @@ module.exports = (function() {
         var quality = argscheck.getValue(options.quality, 100);
         var scale = argscheck.getValue(options.scale, 100);
         var saveToPhotoGallery = options.saveToPhotoGallery === undefined ? true : !!options.saveToPhotoGallery;
+         var includeCameraView = options.includeCameraView === undefined ? true : !!options.includeCameraView;
+        var includeWebView = options.includeWebView === undefined ? true : !!options.includeWebView;
         
         //deprecated saveToPhotoAlbum but temp support for 2016
         saveToPhotoGallery = options.saveToPhotoAlbum === undefined ? saveToPhotoGallery : !!options.saveToPhotoAlbum;
-        
-        var includeCameraView = options.includeCameraView === undefined ? true : !!options.includeCameraView;
-        var includeWebView = options.includeWebView === undefined ? true : !!options.includeWebView;
                   
         var onSuccess = function(imageData) {
             var encoding = encoding == _snapshot.ImageEncoding.JPEG ? 

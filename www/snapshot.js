@@ -38,7 +38,11 @@ module.exports = (function() {
         options = options || {};
         var encoding = argscheck.getValue(options.encoding, _snapshot.ImageEncoding.JPEG);
         var quality = argscheck.getValue(options.quality, 100);
+        quantity = Math.max(0, Math.min(100,quality));
+        quality = quality == 0 ? 100 : quality;
         var scale = argscheck.getValue(options.scale, 100);
+        scale = Math.max(0, Math.min(100,scale));
+        scale = scale == 0 ? 100 : quality;
         var saveToPhotoGallery = options.saveToPhotoGallery === undefined ? true : !!options.saveToPhotoGallery;
          var includeCameraView = options.includeCameraView === undefined ? true : !!options.includeCameraView;
         var includeWebView = options.includeWebView === undefined ? true : !!options.includeWebView;
@@ -66,7 +70,8 @@ module.exports = (function() {
      _snapshot.saveToPhotoGallery = function(imageData,successCallback,errorCallback) {
                 
         argscheck.checkArgs('SFF', 'ezar.saveToPhotoGallery', arguments); 
-        if (!imageData || !imageData.startsWith('data:image')) {
+        var reqImageDataPrefix = 'data:image';  //used because startsWith not universally supporeted yet
+        if (!imageData || !imageData.substr(0, reqImageDataPrefix.length) === reqImageDataPrefix) {
             if (errorCallback) {
                 errorCallback('ImageData is not in base64 image format');
                 return;

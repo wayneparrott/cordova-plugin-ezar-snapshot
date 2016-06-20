@@ -42,6 +42,7 @@ import java.lang.reflect.Method;
  * Created by Zirk on 2/5/2016.
  */
 //todo clean up:
+// 0) clear state between exec calls from js
 // 1) permission impl
 // 2) includeCameraView impl
 // 3) logic assumes camera is running
@@ -62,13 +63,22 @@ public class Snapshot extends CordovaPlugin {
 	private MediaActionSound mSound;
 
 	private CompressFormat  encoding;
+	private int quality;
+	private int scale;
 	private boolean saveToPhotoAlbum;
 	private boolean includeCameraView = true;
 	private boolean includeWebView = true;
 	private CallbackContext callbackContext;
 
 	private Bitmap snapshotBitmap;
+	private String saveToMediaStoreUrl;
 
+	enum ActionContext {
+		SNAPSHOT,
+		SAVE_TO_GALLERY
+	};
+
+	private ActionContext actionContext = null;
 
 	@Override
 	public void initialize(final CordovaInterface cordova, final CordovaWebView cvWebView) {
@@ -84,35 +94,29 @@ public class Snapshot extends CordovaPlugin {
 	public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
 		Log.d(TAG, action + " " + args.length());
 
+		this.callbackContext = callbackContext;
+		
 		if (action.equals("snapshot")) {
-			this.callbackContext = callbackContext;
+			actionContext = ActionContext.SNAPSHOT;
 			int encodingParam = args.getInt(0);  //JPG: 0, PNG: 1
 			this.encoding = encodingParam == 0 ? Bitmap.CompressFormat.JPEG : Bitmap.CompressFormat.PNG;
-			this.saveToPhotoAlbum = args.getBoolean(1);
-			this.includeCameraView = args.getBoolean(2) && getVOPlugin() != null;
-			this.includeWebView = args.getBoolean(3);
+			this.quality = args.getInt(1);
+			this.scale = args.getInt(2);
+			this.saveToPhotoAlbum = args.getBoolean(3);
+			this.includeCameraView = args.getBoolean(4) && getVOPlugin() != null;
+			this.includeWebView = args.getBoolean(5);
 
 			//todo check for includeCameraView & includeWebView == false, which is an error
-			this.snapshot(encoding, saveToPhotoAlbum, callbackContext);
+			this.snapshot(encoding, quality, saveToPhotoAlbum, callbackContext);
 
 			return true;
+		} else if (action.equals("saveToPhotoGallery")) {
+			actionContext = ActionContext.SAVE_TO_GALLERY;
+			String imageData = args.getString(0);
+			this.saveToPhotoGallery(imageData);
+			return true; 
 		}
-
 		return false;
-	}
-    
-    private void snapshot(final CompressFormat encoding, final boolean saveToPhotoAlbum, CallbackContext callbackContext) {
-		Log.d(TAG, "snapshot");
-
-		if (includeCameraView) {
-			if (PermissionHelper.hasPermission(this, permissions[0])) {
-				secureSnapshot(encoding, saveToPhotoAlbum, callbackContext);
-			} else {
-				PermissionHelper.requestPermission(this, CAMERA_SEC, Manifest.permission.CAMERA);
-			}
-		} else {
-			secureSnapshot(encoding, saveToPhotoAlbum, callbackContext);
-		}
 	}
 
 	//copied from Apache Cordova plugin
@@ -126,23 +130,48 @@ public class Snapshot extends CordovaPlugin {
 		}
 		switch(requestCode) {
 			case CAMERA_SEC:
-				secureSnapshot(this.encoding, this.saveToPhotoAlbum, this.callbackContext);
+				secureSnapshot(this.encoding, this.quality, this.saveToPhotoAlbum, this.callbackContext);
 			case SAVE_TO_ALBUM_SEC:
 				saveToMediaStore();
 				break;
 		}
 	}
 
-	private void secureSnapshot(final CompressFormat encoding, final boolean saveToPhotoAlbum, final CallbackContext callbackContext) {
-		Log.d(TAG, "secureSnapshot");
+    private void snapshot(final CompressFormat encoding, final int quality, final boolean saveToPhotoAlbum, CallbackContext callbackContext) {
+		Log.d(TAG, "snapshot");
 
 		if (includeCameraView) {
-			Camera camera = getActiveVOCamera();
-			if (camera != null) {
-				//why start preview, I don't give a crap if camera is running or not
-				camera.startPreview();
+			if (PermissionHelper.hasPermission(this, permissions[0])) {
+				secureSnapshot(encoding, quality, saveToPhotoAlbum, callbackContext);
+			} else {
+				PermissionHelper.requestPermission(this, CAMERA_SEC, Manifest.permission.CAMERA);
 			}
+		} else {
+			secureSnapshot(encoding, quality, saveToPhotoAlbum, callbackContext);
 		}
+	}
+
+	private void saveToPhotoGallery(String imageData) {
+		byte[] decodedBytes = Base64.decode(imageData, 0);
+		snapshotBitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+		if (snapshotBitmap == null) {
+			callbackContext.error("Unable to convert image data to image");
+			return;
+		}
+		saveToMediaStore();
+	}
+
+
+	private void secureSnapshot(final CompressFormat encoding, final int quality, final boolean saveToPhotoAlbum, final CallbackContext callbackContext) {
+		Log.d(TAG, "secureSnapshot");
+
+//		if (includeCameraView) {
+//			Camera camera = getActiveVOCamera();
+//			if (camera != null) {
+//				//why start preview, I don't give a crap if camera is running or not
+//				camera.startPreview();
+//			}
+//		}
 
 		buildAndSaveSnapshotImage(encoding, saveToPhotoAlbum, true, callbackContext);
 	}
@@ -167,21 +196,26 @@ public class Snapshot extends CordovaPlugin {
 				int webViewWidth = webViewView.getWidth();
 				int webViewHt = webViewView.getHeight();
 
-				//webViewWidth = 1920;
 				Log.d(TAG, "WebView width: " + webViewWidth + "  ht: " + webViewHt);
 
 				//create webView imageData
-				Bitmap webViewBitmap = Bitmap.createBitmap(webViewWidth, webViewHt, Bitmap.Config.ARGB_8888);
-				Canvas webViewCanvas = new Canvas(webViewBitmap);
+				Bitmap webViewBitmap = null;
+				Canvas webViewCanvas = null;
 				if (includeWebView) {
+					webViewBitmap = Bitmap.createBitmap(webViewWidth, webViewHt, Bitmap.Config.ARGB_8888);
+					webViewCanvas = new Canvas(webViewBitmap);
 					if (!includeCameraView) {
 						webViewCanvas.drawColor(getBackgroundColor());
 					}
 					webViewView.draw(webViewCanvas);
 				}
 
-				Bitmap resultBitmap = null;
-				Canvas resultCanvas = null;
+				int scaledWidth = (int)(webViewWidth * scale / 100.0f);
+				int scaledHt = (int)(webViewHt * scale / 100.0f);
+				Bitmap resultBitmap = Bitmap.createBitmap(scaledWidth, scaledHt, Bitmap.Config.ARGB_8888);
+				Canvas resultCanvas = new Canvas(resultBitmap);
+				Rect dstRect = new Rect();
+				resultCanvas.getClipBounds(dstRect);
 
 				if (includeCameraView) {
 
@@ -190,39 +224,28 @@ public class Snapshot extends CordovaPlugin {
 
 					Log.d(TAG, "scaledVideoFrameBitmap2,  w: " + scaledVideoFrameBitmap.getWidth() + ": " + scaledVideoFrameBitmap.getHeight());
 
-
 					//create new resultBitmap, set its bounds to clip to webview rect, draw videoFrameBitmap onto it
-					resultBitmap = Bitmap.createBitmap(webViewWidth, webViewHt, Bitmap.Config.ARGB_8888);
-					resultCanvas = new Canvas(resultBitmap);
-					Rect dstRect = new Rect();
-					resultCanvas.getClipBounds(dstRect);
-					resultCanvas.drawBitmap(scaledVideoFrameBitmap, dstRect, dstRect, null);
+					resultCanvas.drawBitmap(scaledVideoFrameBitmap, null, dstRect, null);
+				}
 
-					if (includeWebView) {
-						//draw webviewBitmap on top of videoFrameBitmap, i.e., resultBitmap in the resultCanvas
-						try {
-							Paint p = new Paint();
-							p.setAlpha(255);
-							p.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP));
-							resultCanvas.drawBitmap(webViewBitmap, null, dstRect, p);
+				if (includeWebView) {
+					//draw webviewBitmap on top of videoFrameBitmap, i.e., resultBitmap in the resultCanvas
+					try {
+						Paint p = new Paint();
+						p.setAlpha(includeCameraView ? 255 : 0);
+						p.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP));
+						resultCanvas.drawBitmap(webViewBitmap, null, dstRect, p);
 
-						} catch (Exception ex) {
-							ex.printStackTrace();
-						}
+					} catch (Exception ex) {
+						ex.printStackTrace();
 					}
-				} else {
-					resultBitmap = webViewBitmap;
 				}
 
 				snapshotBitmap = resultBitmap;
-				String imageEncoded = encodeImageData(resultBitmap, format);
+				String imageEncoded = encodeImageData(resultBitmap, format, quality);
 
 				if (saveToGallery) {
-					if (PermissionHelper.hasPermission(plugin, permissions[1])) {
-						saveToMediaStore();
-					} else {
-						PermissionHelper.requestPermission(plugin, SAVE_TO_ALBUM_SEC, Manifest.permission.WRITE_EXTERNAL_STORAGE);
-					}
+					saveToMediaStore();
 				}
 
 				callbackContext.success(imageEncoded);
@@ -238,9 +261,18 @@ public class Snapshot extends CordovaPlugin {
 		}); //post
 	}
 
+
 	private void saveToMediaStore() {
-		saveToMediaStore(snapshotBitmap);
-		snapshotBitmap = null;
+		if (PermissionHelper.hasPermission(this, permissions[1])) {
+			saveToMediaStoreUrl = saveToMediaStore(snapshotBitmap);
+			if (actionContext == ActionContext.SAVE_TO_GALLERY) {
+				callbackContext.success(saveToMediaStoreUrl);
+			}
+			snapshotBitmap = null;
+		} else {
+			PermissionHelper.requestPermission(this, SAVE_TO_ALBUM_SEC, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+		}
+
 	}
 
 	private String saveToMediaStore(Bitmap imageData) {
@@ -255,9 +287,9 @@ public class Snapshot extends CordovaPlugin {
 		return url;
 	}
 
-	private String encodeImageData(Bitmap imageData, CompressFormat encoding) {
+	private String encodeImageData(Bitmap imageData, CompressFormat encoding, int quality) {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		imageData.compress(encoding, 100, baos);
+		imageData.compress(encoding, quality, baos);
 		byte[] bytes = baos.toByteArray();
 		String imageEncoded = Base64.encodeToString(bytes, Base64.DEFAULT);
 

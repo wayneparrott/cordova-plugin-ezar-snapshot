@@ -17,30 +17,38 @@ module.exports = (function() {
            
 	 //--------------------------------------
     var _snapshot = {};
-        
+
     /**
      * Create a screenshot image
      *
      * options = {
      *   "saveToPhotoAlbum": true, 
      *   "encoding": _snapshot.ImageEncoding.JPEG 
+     *   "quality": 100,  only applys for jpeg encoding
+     *   "scale": 100,
      *   "includeCameraView": true,
      *   "includeWebView": true}
      */
     
     _snapshot.snapshot = function(successCallback,errorCallback, options) {
-                  
+                
+        argscheck.checkArgs('FFO', 'ezar.snapshot', arguments);        
+
         //options impl inspired by cordova Camera plugin
         options = options || {};
-        var getValue = argscheck.getValue;
-        var encoding = getValue(options.encoding, _snapshot.ImageEncoding.JPEG);
+        var encoding = argscheck.getValue(options.encoding, _snapshot.ImageEncoding.JPEG);
+        var quality = argscheck.getValue(options.quality, 50);
+        quantity = Math.max(0, Math.min(100,quality));
+        quality = quality == 0 ? 50 : quality;
+        var scale = argscheck.getValue(options.scale, 100);
+        scale = Math.max(0, Math.min(100,scale));
+        scale = scale == 0 ? 100 : quality;
         var saveToPhotoGallery = options.saveToPhotoGallery === undefined ? true : !!options.saveToPhotoGallery;
+         var includeCameraView = options.includeCameraView === undefined ? true : !!options.includeCameraView;
+        var includeWebView = options.includeWebView === undefined ? true : !!options.includeWebView;
         
         //deprecated saveToPhotoAlbum but temp support for 2016
         saveToPhotoGallery = options.saveToPhotoAlbum === undefined ? saveToPhotoGallery : !!options.saveToPhotoAlbum;
-        
-        var includeCameraView = options.includeCameraView === undefined ? true : !!options.includeCameraView;
-        var includeWebView = options.includeWebView === undefined ? true : !!options.includeWebView;
                   
         var onSuccess = function(imageData) {
             var encoding = encoding == _snapshot.ImageEncoding.JPEG ? 
@@ -55,9 +63,29 @@ module.exports = (function() {
              errorCallback,
              "snapshot",
              "snapshot",
-            [encoding, saveToPhotoGallery, includeCameraView, includeWebView]);
+            [encoding, quality, scale, saveToPhotoGallery, includeCameraView, includeWebView]);
 
     }
+
+     _snapshot.saveToPhotoGallery = function(imageData,successCallback,errorCallback) {
+                
+        argscheck.checkArgs('SFF', 'ezar.saveToPhotoGallery', arguments); 
+        var reqImageDataPrefix = 'data:image';  //used because startsWith not universally supporeted yet
+        if (!imageData || !imageData.substr(0, reqImageDataPrefix.length) === reqImageDataPrefix) {
+            if (errorCallback) {
+                errorCallback('ImageData is not in base64 image format');
+                return;
+            }
+        }
+        var startIdx = 'data:image/X;base64,'.length;
+        imageData = imageData.substring(startIdx);
+
+        exec(successCallback,
+             errorCallback,
+             "snapshot",
+             "saveToPhotoGallery",
+            [imageData]);
+     }
                   
     _snapshot.ImageEncoding = {
         JPEG: 0,             // Return JPEG encoded image

@@ -145,24 +145,9 @@ static NSString* toBase64(NSData* data) {
 - (void) snapshot:(CDVInvokedUrlCommand*)command
 {
     BOOL includeCameraView =
-        [[command argumentAtIndex:2 withDefault:@(YES)] boolValue] &&
+        [[command argumentAtIndex:4 withDefault:@(YES)] boolValue] &&
         [self hasVideoOverlayPlugin];
     
-    
-    //BOOL includeWebView = [[command argumentAtIndex:3 withDefault:@(YES)] boolValue];
-    //NSString* cameraViewBackgroundRGB = [[command argumentAtIndex:4 withDefault:@] boolValue];
-    
-//    if (!includeCameraView && !includeWebView) {
-//        //error nothing to return
-//        NSDictionary* errorResult = [self makeErrorResult: EZAR_ERROR_CODE_INVALID_ARGUMENT
-//                                              withData: @"CameraView or WebView must be included"];
-//            
-//        CDVPluginResult* pluginResult =
-//            [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR
-//                             messageAsDictionary: errorResult];
-//            
-//        return  [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-//    }
     
     // Find the videoOverlay CameraView
     UIImageView *cameraView = self.getCameraView;
@@ -251,8 +236,11 @@ static NSString* toBase64(NSData* data) {
             playSound:(BOOL)shouldPlaySound command:(CDVInvokedUrlCommand*)command
 {
     EZAR_IMAGE_ENCODING encodingType = [[command argumentAtIndex:0 withDefault:@(EZAR_IMAGE_ENCODING_JPG)] unsignedIntegerValue];
-    BOOL saveToPhotoAlbum = [[command argumentAtIndex:1 withDefault:@(YES)] boolValue];
-    BOOL includeWebView = [[command argumentAtIndex:3 withDefault:@(YES)] boolValue];
+    
+    CGFloat quality = [[command argumentAtIndex:1 withDefault:@(100)] unsignedIntegerValue] / 100.0;
+    CGFloat scale = [[command argumentAtIndex:2 withDefault:@(100)] unsignedIntegerValue] / 100.0;
+    BOOL saveToPhotoAlbum = [[command argumentAtIndex:3 withDefault:@(YES)] boolValue];
+    BOOL includeWebView = [[command argumentAtIndex:5 withDefault:@(YES)] boolValue];
     
     //Assign the video frame image to the cameraView image.
     //The cameraView.contentMode = UIViewContentModeScaleAspectFill
@@ -279,6 +267,7 @@ static NSString* toBase64(NSData* data) {
     } else if (cameraImage) {
         screenshot = cameraImage;
     } else {
+        scale = 1.0;
         //create an empty image
         UIView *view = self.viewController.view;
         CGRect rect = view.bounds;
@@ -286,6 +275,16 @@ static NSString* toBase64(NSData* data) {
         CGContextRef context = UIGraphicsGetCurrentContext();
         CGContextSetFillColorWithColor(context,[[UIColor blackColor] CGColor]);
         CGContextFillRect(context, rect);
+        screenshot = UIGraphicsGetImageFromCurrentImageContext();
+        UIGraphicsEndImageContext();
+    }
+    
+    if (scale < 1.0) {
+        CGSize s1 = screenshot.size;
+        CGSize sz = CGSizeApplyAffineTransform(screenshot.size, CGAffineTransformMakeScale(scale,scale));
+        UIGraphicsBeginImageContextWithOptions(sz, NO, 0.0);
+        CGRect rect = CGRectMake(0, 0, sz.width, sz.height);
+        [screenshot drawInRect: rect] ;
         screenshot = UIGraphicsGetImageFromCurrentImageContext();
         UIGraphicsEndImageContext();
     }
@@ -301,7 +300,7 @@ static NSString* toBase64(NSData* data) {
     //format image for return
     NSData *screenshotData = nil;
     if (encodingType == EZAR_IMAGE_ENCODING_JPG) {
-        screenshotData = UIImageJPEGRepresentation(screenshot, 1.0);
+        screenshotData = UIImageJPEGRepresentation(screenshot, quality);
     } else {
         screenshotData = UIImagePNGRepresentation(screenshot);
     }

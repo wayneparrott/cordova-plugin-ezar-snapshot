@@ -42,7 +42,7 @@ module.exports = (function() {
         quality = quality == 0 ? 50 : quality;
         var scale = argscheck.getValue(options.scale, 100);
         scale = Math.max(0, Math.min(100,scale));
-        scale = scale == 0 ? 100 : quality;
+        scale = scale == 0 ? 100 : scale;
         var saveToPhotoGallery = options.saveToPhotoGallery === undefined ? true : !!options.saveToPhotoGallery;
          var includeCameraView = options.includeCameraView === undefined ? true : !!options.includeCameraView;
         var includeWebView = options.includeWebView === undefined ? true : !!options.includeWebView;

@@ -73,7 +73,7 @@ module.exports = (function() {
                 
         argscheck.checkArgs('SFF', 'ezar.saveToPhotoGallery', arguments); 
 
-        var pattern = /^data:image\/(.{1,3});(base64,)/;
+        var pattern = /^data:image\/([^;]+);(base64,)/i;
         var searchResult = pattern.exec(imageData);
         if (!searchResult) {
             if (errorCallback) {

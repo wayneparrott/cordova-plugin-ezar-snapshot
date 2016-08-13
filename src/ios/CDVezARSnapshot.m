@@ -314,9 +314,9 @@ static NSString* toBase64(NSData* data) {
 
 - (void) saveToPhotoGallery:(CDVInvokedUrlCommand*)command {
     NSString* imageDataString = [command argumentAtIndex:0];
-    CGFloat quality = [[command argumentAtIndex:1 withDefault:@(100)] unsignedIntegerValue] / 100.0;
-    CGFloat scale = [[command argumentAtIndex:2 withDefault:@(100)] unsignedIntegerValue] / 100.0;
-    EZAR_IMAGE_ENCODING encodingType = [[command argumentAtIndex:0 withDefault:@(EZAR_IMAGE_ENCODING_JPG)] unsignedIntegerValue];
+    EZAR_IMAGE_ENCODING encodingType = [[command argumentAtIndex:1 withDefault:@(EZAR_IMAGE_ENCODING_JPG)]  unsignedIntegerValue];
+    CGFloat quality = [[command argumentAtIndex:2 withDefault:@(100)] unsignedIntegerValue] / 100.0;
+    CGFloat scale = [[command argumentAtIndex:3 withDefault:@(100)] unsignedIntegerValue] / 100.0;
 
     // NSData from the Base64 encoded str
     NSData *imageData =

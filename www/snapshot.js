@@ -22,7 +22,8 @@ module.exports = (function() {
      * Create a screenshot image
      *
      * options = {
-     *   "saveToPhotoAlbum": true, 
+     *   "name": null, only applies if saveToPhotoGallery is true
+     *   "saveToPhotoGallery": true, 
      *   "encoding": _snapshot.ImageEncoding.JPEG 
      *   "quality": 100,  only applys for jpeg encoding
      *   "scale": 100,
@@ -44,7 +45,8 @@ module.exports = (function() {
         scale = Math.max(0, Math.min(100,scale));
         scale = scale == 0 ? 100 : scale;
         var saveToPhotoGallery = options.saveToPhotoGallery === undefined ? true : !!options.saveToPhotoGallery;
-         var includeCameraView = options.includeCameraView === undefined ? true : !!options.includeCameraView;
+        var imageName = argscheck.getValue(options.name, "");
+        var includeCameraView = options.includeCameraView === undefined ? true : !!options.includeCameraView;
         var includeWebView = options.includeWebView === undefined ? true : !!options.includeWebView;
         
         //deprecated saveToPhotoAlbum but temp support for 2016
@@ -63,28 +65,43 @@ module.exports = (function() {
              errorCallback,
              "snapshot",
              "snapshot",
-            [encoding, quality, scale, saveToPhotoGallery, includeCameraView, includeWebView]);
+            [encoding, quality, scale, saveToPhotoGallery, imageName, includeCameraView, includeWebView]);
 
     }
 
-     _snapshot.saveToPhotoGallery = function(imageData,successCallback,errorCallback) {
+     _snapshot.saveToPhotoGallery = function(imageData,successCallback,errorCallback,options) {
                 
         argscheck.checkArgs('SFF', 'ezar.saveToPhotoGallery', arguments); 
-        var reqImageDataPrefix = 'data:image';  //used because startsWith not universally supporeted yet
-        if (!imageData || !imageData.substr(0, reqImageDataPrefix.length) === reqImageDataPrefix) {
+
+        var pattern = /^data:image\/(.{1,3});(base64,)/;
+        var searchResult = pattern.exec(imageData);
+        if (!searchResult) {
             if (errorCallback) {
                 errorCallback('ImageData is not in base64 image format');
                 return;
             }
         }
-        var startIdx = 'data:image/X;base64,'.length;
+        
+        var startIdx = searchResult[0].length;  //'data:image/xxx;base64,'.length;
         imageData = imageData.substring(startIdx);
+
+        //options impl inspired by cordova Camera plugin
+        options = options || {};
+        var encoding = argscheck.getValue(options.encoding, _snapshot.ImageEncoding.JPEG);
+        var quality = argscheck.getValue(options.quality, 50);
+        quantity = Math.max(0, Math.min(100,quality));
+        quality = quality == 0 ? 50 : quality;
+        var scale = argscheck.getValue(options.scale, 100);
+        scale = Math.max(0, Math.min(100,scale));
+        scale = scale == 0 ? 100 : scale;
+        var saveToPhotoGallery = true;
+        var imageName = argscheck.getValue(options.name, "");
 
         exec(successCallback,
              errorCallback,
              "snapshot",
              "saveToPhotoGallery",
-            [imageData]);
+             [imageData, encoding, quality, scale, saveToPhotoGallery, imageName]);
      }
                   
     _snapshot.ImageEncoding = {

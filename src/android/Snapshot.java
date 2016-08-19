@@ -69,17 +69,17 @@ public class Snapshot extends CordovaPlugin {
 	private View webViewView;
 	private MediaActionSound mSound;
 
-	public CompressFormat  encoding;
-	public int quality; //[1,100]
-	public int scale;   //[1-100]
-	public boolean saveToPhotoGallery;
-	public String imageName;
-	public boolean includeCameraView = true;
-	public boolean includeWebView = true;
-	public CallbackContext callbackContext;
+	private CompressFormat  encoding;
+	private int quality; //[1,100]
+	private int scale;   //[1-100]
+	private boolean saveToPhotoGallery;
+	private String imageName;
+	private boolean includeCameraView = true;
+	private boolean includeWebView = true;
+	private CallbackContext callbackContext;
 
-	public byte[] snapshotBytes;
-	public Bitmap snapshotBitmap;
+	private byte[] snapshotBytes;
+	private Bitmap snapshotBitmap;
 	private String saveToMediaStoreUrl;
 	private File imageDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
 
@@ -143,7 +143,7 @@ public class Snapshot extends CordovaPlugin {
 	private void reset() {
 		//clear parameters
 		encoding = CompressFormat.JPEG;
-		quality = 100;
+		quality = 50;
 		scale = 100;
 		imageName = "";
 		callbackContext = null;
@@ -214,9 +214,7 @@ public class Snapshot extends CordovaPlugin {
 
 	private void buildAndSaveSnapshotImage(final boolean playSound) {
 
-		final Snapshot plugin = this;
-
-		//resume preview after it automatically stopped during takePicture()
+		//must resume preview after it automatically stopped during takePicture()
 
 		webViewView.getRootView().post(new Runnable() {
 			@Override
@@ -278,21 +276,19 @@ public class Snapshot extends CordovaPlugin {
 				}
 
 				snapshotBitmap = resultBitmap;
-				snapshotBytes = bitmap2Bytes(resultBitmap, plugin.encoding, plugin.quality, plugin.scale);
+				snapshotBytes = bitmap2Bytes(resultBitmap, encoding, quality, scale);
 
-				if (plugin.saveToPhotoGallery) {
+				if (saveToPhotoGallery) {
 					saveToPhotoGallery();
 				}
 
 				callbackContext.success(bytesToBase64String(snapshotBytes));
 
 				//clean up
-				reset();
 				resultBitmap = null;
 				resultCanvas = null;
 				webViewBitmap = null;
 				webViewCanvas = null;
-
 			}
 		});
 	}
@@ -300,9 +296,10 @@ public class Snapshot extends CordovaPlugin {
 	//snapshotBytes must be set before calling this method
 	private void saveToMediaStore() {
 		if (PermissionHelper.hasPermission(this, permissions[1])) {
-			saveToMediaStoreUrl = secureSaveToMediaStore();
+			saveToMediaStoreUrl = this.secureSaveToMediaStore();
 			if (actionContext == ActionContext.SAVE_TO_GALLERY) {
 				callbackContext.success(saveToMediaStoreUrl);
+				reset();
 			}
 			snapshotBitmap = null;
 		} else {

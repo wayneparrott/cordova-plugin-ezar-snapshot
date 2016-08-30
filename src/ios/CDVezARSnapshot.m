@@ -145,7 +145,7 @@ static NSString* toBase64(NSData* data) {
 - (void) snapshot:(CDVInvokedUrlCommand*)command
 {
     BOOL includeCameraView =
-        [[command argumentAtIndex:4 withDefault:@(YES)] boolValue] &&
+        [[command argumentAtIndex:5 withDefault:@(YES)] boolValue] &&
         [self hasVideoOverlayPlugin];
     
     
@@ -240,7 +240,7 @@ static NSString* toBase64(NSData* data) {
     CGFloat quality = [[command argumentAtIndex:1 withDefault:@(100)] unsignedIntegerValue] / 100.0;
     CGFloat scale = [[command argumentAtIndex:2 withDefault:@(100)] unsignedIntegerValue] / 100.0;
     BOOL saveToPhotoAlbum = [[command argumentAtIndex:3 withDefault:@(YES)] boolValue];
-    BOOL includeWebView = [[command argumentAtIndex:5 withDefault:@(YES)] boolValue];
+    BOOL includeWebView = [[command argumentAtIndex:6 withDefault:@(YES)] boolValue];
     
     //Assign the video frame image to the cameraView image.
     //The cameraView.contentMode = UIViewContentModeScaleAspectFill

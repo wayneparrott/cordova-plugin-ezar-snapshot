@@ -145,7 +145,7 @@ static NSString* toBase64(NSData* data) {
 - (void) snapshot:(CDVInvokedUrlCommand*)command
 {
     BOOL includeCameraView =
-        [[command argumentAtIndex:4 withDefault:@(YES)] boolValue] &&
+        [[command argumentAtIndex:5 withDefault:@(YES)] boolValue] &&
         [self hasVideoOverlayPlugin];
     
     
@@ -240,7 +240,7 @@ static NSString* toBase64(NSData* data) {
     CGFloat quality = [[command argumentAtIndex:1 withDefault:@(100)] unsignedIntegerValue] / 100.0;
     CGFloat scale = [[command argumentAtIndex:2 withDefault:@(100)] unsignedIntegerValue] / 100.0;
     BOOL saveToPhotoAlbum = [[command argumentAtIndex:3 withDefault:@(YES)] boolValue];
-    BOOL includeWebView = [[command argumentAtIndex:5 withDefault:@(YES)] boolValue];
+    BOOL includeWebView = [[command argumentAtIndex:6 withDefault:@(YES)] boolValue];
     
     //Assign the video frame image to the cameraView image.
     //The cameraView.contentMode = UIViewContentModeScaleAspectFill
@@ -314,15 +314,37 @@ static NSString* toBase64(NSData* data) {
 
 - (void) saveToPhotoGallery:(CDVInvokedUrlCommand*)command {
     NSString* imageDataString = [command argumentAtIndex:0];
-    
+    EZAR_IMAGE_ENCODING encodingType = [[command argumentAtIndex:1 withDefault:@(EZAR_IMAGE_ENCODING_JPG)]  unsignedIntegerValue];
+    CGFloat quality = [[command argumentAtIndex:2 withDefault:@(100)] unsignedIntegerValue] / 100.0;
+    CGFloat scale = [[command argumentAtIndex:3 withDefault:@(100)] unsignedIntegerValue] / 100.0;
+
     // NSData from the Base64 encoded str
     NSData *imageData =
         [[NSData alloc] initWithBase64EncodedString:imageDataString options:0];
-    
     UIImage *image = [UIImage imageWithData:imageData];
     
+    //scale image if needed
+    if (scale < 1.0) {
+        CGSize s1 = image.size;
+        CGSize sz = CGSizeApplyAffineTransform(image.size, CGAffineTransformMakeScale(scale,scale));
+        UIGraphicsBeginImageContextWithOptions(sz, NO, 0.0);
+        CGRect rect = CGRectMake(0, 0, sz.width, sz.height);
+        [image drawInRect: rect] ;
+        image = UIGraphicsGetImageFromCurrentImageContext();
+        UIGraphicsEndImageContext();
+    }
+
+    //create a new image in order to apply quality and encode image 
+    NSData *newImageData = nil;
+    if (encodingType == EZAR_IMAGE_ENCODING_JPG) {
+        newImageData = UIImageJPEGRepresentation(image, quality);
+    } else {
+        newImageData = UIImagePNGRepresentation(image);
+    }
+    UIImage *newImage = [UIImage imageWithData:imageData];
+
     //todo: handling error saving to photo gallery
-    UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil);
+    UIImageWriteToSavedPhotosAlbum(newImage, nil, nil, nil);
     
     CDVPluginResult* pluginResult =
         [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString: @""];

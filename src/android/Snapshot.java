@@ -1,7 +1,9 @@
 package com.ezartech.ezar.snapshot;
 
 import android.Manifest;
+import android.content.ContentValues;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.CompressFormat;
 import android.graphics.BitmapFactory;
@@ -14,6 +16,8 @@ import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
 import android.hardware.Camera;
 import android.media.MediaActionSound;
+import android.net.Uri;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Base64;
 import android.util.Log;
@@ -35,8 +39,13 @@ import org.json.JSONArray;
 import org.json.JSONException;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Created by Zirk on 2/5/2016.
@@ -44,8 +53,6 @@ import java.lang.reflect.Method;
 //todo clean up:
 // 0) clear state between exec calls from js
 // 1) permission impl
-// 2) includeCameraView impl
-// 3) logic assumes camera is running
 
 public class Snapshot extends CordovaPlugin {
 	private static final String TAG = "Snapshot";
@@ -63,15 +70,18 @@ public class Snapshot extends CordovaPlugin {
 	private MediaActionSound mSound;
 
 	private CompressFormat  encoding;
-	private int quality;
-	private int scale;
-	private boolean saveToPhotoAlbum;
+	private int quality; //[1,100]
+	private int scale;   //[1-100]
+	private boolean saveToPhotoGallery;
+	private String imageName;
 	private boolean includeCameraView = true;
 	private boolean includeWebView = true;
 	private CallbackContext callbackContext;
 
+	private byte[] snapshotBytes;
 	private Bitmap snapshotBitmap;
 	private String saveToMediaStoreUrl;
+	private File imageDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
 
 	enum ActionContext {
 		SNAPSHOT,
@@ -95,28 +105,54 @@ public class Snapshot extends CordovaPlugin {
 		Log.d(TAG, action + " " + args.length());
 
 		this.callbackContext = callbackContext;
-		
+
 		if (action.equals("snapshot")) {
 			actionContext = ActionContext.SNAPSHOT;
 			int encodingParam = args.getInt(0);  //JPG: 0, PNG: 1
 			this.encoding = encodingParam == 0 ? Bitmap.CompressFormat.JPEG : Bitmap.CompressFormat.PNG;
 			this.quality = args.getInt(1);
 			this.scale = args.getInt(2);
-			this.saveToPhotoAlbum = args.getBoolean(3);
-			this.includeCameraView = args.getBoolean(4) && getVOPlugin() != null;
-			this.includeWebView = args.getBoolean(5);
+			this.saveToPhotoGallery = args.getBoolean(3);  //redundant for saveToPhotoGallery action
+			this.imageName = args.getString(4);
+			this.includeCameraView = args.getBoolean(5) && getVOPlugin() != null;
+			this.includeWebView = args.getBoolean(6);
 
 			//todo check for includeCameraView & includeWebView == false, which is an error
-			this.snapshot(encoding, quality, saveToPhotoAlbum, callbackContext);
+			this.snapshot();
 
 			return true;
 		} else if (action.equals("saveToPhotoGallery")) {
 			actionContext = ActionContext.SAVE_TO_GALLERY;
 			String imageData = args.getString(0);
-			this.saveToPhotoGallery(imageData);
+			int encodingParam = args.getInt(1);  //JPG: 0, PNG: 1
+			this.encoding = encodingParam == 0 ? Bitmap.CompressFormat.JPEG : Bitmap.CompressFormat.PNG;
+			this.quality = args.getInt(2);
+			this.scale = args.getInt(3);
+			this.saveToPhotoGallery = args.getBoolean(4);  //redundant for saveToPhotoGallery action
+			this.imageName = args.getString(5);
+		
+			snapshotBitmap = base64String2Bitmap(imageData);
+			snapshotBytes = bitmap2Bytes(snapshotBitmap, encoding, quality, scale);
+			this.saveToPhotoGallery();
 			return true; 
 		}
 		return false;
+	}
+
+	//clear state
+	private void reset() {
+		//clear parameters
+		encoding = CompressFormat.JPEG;
+		quality = 50;
+		scale = 100;
+		imageName = "";
+		callbackContext = null;
+		includeCameraView = true;
+		includeWebView = true;
+
+		//clear internal state
+		snapshotBytes = null;
+		snapshotBitmap = null;
 	}
 
 	//copied from Apache Cordova plugin
@@ -130,30 +166,30 @@ public class Snapshot extends CordovaPlugin {
 		}
 		switch(requestCode) {
 			case CAMERA_SEC:
-				secureSnapshot(this.encoding, this.quality, this.saveToPhotoAlbum, this.callbackContext);
+				secureSnapshot();
 			case SAVE_TO_ALBUM_SEC:
 				saveToMediaStore();
 				break;
 		}
 	}
 
-    private void snapshot(final CompressFormat encoding, final int quality, final boolean saveToPhotoAlbum, CallbackContext callbackContext) {
+    private void snapshot() {
 		Log.d(TAG, "snapshot");
 
 		if (includeCameraView) {
 			if (PermissionHelper.hasPermission(this, permissions[0])) {
-				secureSnapshot(encoding, quality, saveToPhotoAlbum, callbackContext);
+				secureSnapshot();
 			} else {
 				PermissionHelper.requestPermission(this, CAMERA_SEC, Manifest.permission.CAMERA);
 			}
 		} else {
-			secureSnapshot(encoding, quality, saveToPhotoAlbum, callbackContext);
+			secureSnapshot();
 		}
 	}
 
-	private void saveToPhotoGallery(String imageData) {
-		byte[] decodedBytes = Base64.decode(imageData, 0);
-		snapshotBitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+	private void saveToPhotoGallery() {
+//		byte[] decodedBytes = Base64.decode(imageData, 0);
+//		snapshotBitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
 		if (snapshotBitmap == null) {
 			callbackContext.error("Unable to convert image data to image");
 			return;
@@ -162,7 +198,7 @@ public class Snapshot extends CordovaPlugin {
 	}
 
 
-	private void secureSnapshot(final CompressFormat encoding, final int quality, final boolean saveToPhotoAlbum, final CallbackContext callbackContext) {
+	private void secureSnapshot() {
 		Log.d(TAG, "secureSnapshot");
 
 //		if (includeCameraView) {
@@ -173,17 +209,12 @@ public class Snapshot extends CordovaPlugin {
 //			}
 //		}
 
-		buildAndSaveSnapshotImage(encoding, saveToPhotoAlbum, true, callbackContext);
+		buildAndSaveSnapshotImage(true);
 	}
 
-	private void buildAndSaveSnapshotImage(final CompressFormat format, final boolean saveToGallery,
-										   final boolean playSound,
-										   final CallbackContext callbackContext) {
+	private void buildAndSaveSnapshotImage(final boolean playSound) {
 
-
-		final CordovaPlugin plugin = this;
-
-		//resume preview after it automatically stopped during takePicture()
+		//must resume preview after it automatically stopped during takePicture()
 
 		webViewView.getRootView().post(new Runnable() {
 			@Override
@@ -210,8 +241,11 @@ public class Snapshot extends CordovaPlugin {
 					webViewView.draw(webViewCanvas);
 				}
 
-				int scaledWidth = (int)(webViewWidth * scale / 100.0f);
-				int scaledHt = (int)(webViewHt * scale / 100.0f);
+				//move scaling to bitmapToBytes encoding
+//				int scaledWidth = (int)(webViewWidth * scale / 100.0f);
+//				int scaledHt = (int)(webViewHt * scale / 100.0f);
+				int scaledWidth = webViewWidth;
+				int scaledHt = webViewHt;
 				Bitmap resultBitmap = Bitmap.createBitmap(scaledWidth, scaledHt, Bitmap.Config.ARGB_8888);
 				Canvas resultCanvas = new Canvas(resultBitmap);
 				Rect dstRect = new Rect();
@@ -222,7 +256,7 @@ public class Snapshot extends CordovaPlugin {
 					TextureView cameraView = getVOCameraView();
 					Bitmap scaledVideoFrameBitmap = cameraView.getBitmap();
 
-					Log.d(TAG, "scaledVideoFrameBitmap2,  w: " + scaledVideoFrameBitmap.getWidth() + ": " + scaledVideoFrameBitmap.getHeight());
+					//Log.d(TAG, "scaledVideoFrameBitmap2,  w: " + scaledVideoFrameBitmap.getWidth() + ": " + scaledVideoFrameBitmap.getHeight());
 
 					//create new resultBitmap, set its bounds to clip to webview rect, draw videoFrameBitmap onto it
 					resultCanvas.drawBitmap(scaledVideoFrameBitmap, null, dstRect, null);
@@ -242,56 +276,63 @@ public class Snapshot extends CordovaPlugin {
 				}
 
 				snapshotBitmap = resultBitmap;
-				String imageEncoded = encodeImageData(resultBitmap, format, quality);
+				snapshotBytes = bitmap2Bytes(resultBitmap, encoding, quality, scale);
 
-				if (saveToGallery) {
-					saveToMediaStore();
+				if (saveToPhotoGallery) {
+					saveToPhotoGallery();
 				}
 
-				callbackContext.success(imageEncoded);
+				callbackContext.success(bytesToBase64String(snapshotBytes));
 
+				//clean up
 				resultBitmap = null;
 				resultCanvas = null;
 				webViewBitmap = null;
 				webViewCanvas = null;
-				imageEncoded = null;
-				includeCameraView = true;
-				includeWebView = true;
 			}
-		}); //post
+		});
 	}
 
-
+	//snapshotBytes must be set before calling this method
 	private void saveToMediaStore() {
 		if (PermissionHelper.hasPermission(this, permissions[1])) {
-			saveToMediaStoreUrl = saveToMediaStore(snapshotBitmap);
+			saveToMediaStoreUrl = this.secureSaveToMediaStore();
 			if (actionContext == ActionContext.SAVE_TO_GALLERY) {
 				callbackContext.success(saveToMediaStoreUrl);
+				reset();
 			}
 			snapshotBitmap = null;
 		} else {
 			PermissionHelper.requestPermission(this, SAVE_TO_ALBUM_SEC, Manifest.permission.WRITE_EXTERNAL_STORAGE);
 		}
-
 	}
 
-	private String saveToMediaStore(Bitmap imageData) {
-		//save snapshot image to gallery
-		String title = "" + System.currentTimeMillis();
-		String url =
-				MediaStore.Images.Media.insertImage(
-						cordova.getActivity().getContentResolver(),
-						imageData, title, "");
-
-		Log.i(TAG, "SAVED image: " + url);
-		return url;
+	private String bytesToBase64String(byte[]bytes) {
+		return Base64.encodeToString(bytes, Base64.DEFAULT);
 	}
 
-	private String encodeImageData(Bitmap imageData, CompressFormat encoding, int quality) {
+	private byte[] base64String2Bytes(String data) {
+		return Base64.decode(data, 0);
+	}
+
+	private Bitmap base64String2Bitmap(String data) {
+		byte[] bytes = base64String2Bytes(data);
+		Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+		return bitmap;
+	}
+
+	private byte[] bitmap2Bytes(Bitmap imageData, CompressFormat encoding, int quality, int scale) {
+		Bitmap bmap = imageData;
+		if (scale > 0 && scale < 100) {
+			int scaledWidth = (int)(imageData.getWidth() * scale / 100.0f);
+			int scaledHeight = (int)(imageData.getHeight() * scale / 100.0f);
+			boolean filter = false;
+			bmap = Bitmap.createScaledBitmap(imageData, scaledWidth, scaledHeight, filter);
+		}
+
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		imageData.compress(encoding, quality, baos);
+		bmap.compress(encoding, quality, baos);
 		byte[] bytes = baos.toByteArray();
-		String imageEncoded = Base64.encodeToString(bytes, Base64.DEFAULT);
 
 		try {
 			baos.close();
@@ -299,7 +340,118 @@ public class Snapshot extends CordovaPlugin {
 			//do nothing during clean up
 		}
 
-		return imageEncoded;
+		return bytes;
+	}
+
+	//based on http://stackoverflow.com/questions/28243330/add-image-to-media-gallery-android
+	private String secureSaveToMediaStore() {
+
+		//generate filename
+		imageName = createImageName(imageName);
+		String filenameExt =
+				shouldAddExtension(imageName) ?("." + extensionForEncoding(this.encoding)) : "";
+		String filename = imageName + filenameExt;
+
+		//File imageDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+		File file =  new File(this.imageDir,filename);
+		if (file.exists()) {
+			imageName = '_' + imageName;
+			return secureSaveToMediaStore();
+		}
+
+		try {
+			FileOutputStream fos = new FileOutputStream(file);
+			fos.write(snapshotBytes);
+			fos.flush();
+			fos.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		ContentValues values = new ContentValues();
+		values.put(MediaStore.Images.Media.TITLE, imageName);
+		values.put(MediaStore.Images.Media.DISPLAY_NAME, imageName);
+		values.put(MediaStore.Images.Media.DESCRIPTION, "");
+		values.put(MediaStore.Images.Media.MIME_TYPE, "image/" + extensionForEncoding(this.encoding));
+		values.put(MediaStore.Images.Media.DATE_ADDED, System.currentTimeMillis());
+		values.put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis());
+		values.put(MediaStore.Images.Media.DATA, file.getAbsolutePath());
+
+		cordova.getActivity().getContentResolver().
+				insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+
+		return file.getAbsolutePath();
+	}
+
+	private String createImageName(String proposedName) {
+
+		String name = proposedName;
+
+		//generate filename if proposedImageFilename is undefined
+		if (proposedName == null || proposedName.trim().isEmpty()) {
+			name =   "" + System.currentTimeMillis();
+		} else {
+			name = proposedName.trim();
+		}
+
+		//search for existing image with "name" in photo gallery
+		Cursor cursor = null;
+		try {
+			String selection = MediaStore.Images.ImageColumns.TITLE + " = ?";
+			String[] selectionArgs = { name };
+			cursor = MediaStore.Images.Media.query(
+					cordova.getActivity().getContentResolver(),
+					MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+					new String[]{MediaStore.MediaColumns.TITLE},
+//					new String[]{"*"},
+					selection, selectionArgs, null);
+
+			if (cursor == null || cursor.getCount() == 0) {
+				return name;
+			}
+
+		} finally {
+			 if (cursor != null) {
+				 cursor.close();
+			 }
+		}
+
+		Pattern p = Pattern.compile("^(.+?)(\\(\\d+\\))?(\\..{1,5})?$");
+		Matcher m = p.matcher(name);
+
+		boolean hit = m.matches();
+		if (!hit) {
+			return name + "(1)";
+		}
+		String baseName = m.group(1);
+		//System.out.println("basename:" + baseName);
+
+		int newIndex = 1;
+		String indexGrp = m.start(2) > 1 ? m.group(2) : null;
+		if (indexGrp != null) {
+			newIndex = Integer.parseInt( indexGrp.substring(1,indexGrp.length()-1) ) + 1;
+		}
+
+		String extGrp = m.start(3) > 1 ? m.group(3) : "";
+		String newName = baseName + "(" + newIndex + ")" + extGrp;
+
+		return createImageName(newName);
+	}
+
+	private String extensionForEncoding(Bitmap.CompressFormat format) {
+		String result = "";
+		if (format == CompressFormat.JPEG) {
+			result = "jpg";
+		} else if (format == CompressFormat.PNG) {
+			result ="png";
+		}
+		return result;
+	}
+
+	//assume imageFilename.length() > 4 (the len of extension,e.g., .jpg)
+	private boolean shouldAddExtension(String imageFilename) {
+		String name = imageFilename.toLowerCase();
+		return !name.endsWith(".jpg") && !name.endsWith(".png");
 	}
 
 	private boolean isPortraitOrientation() {

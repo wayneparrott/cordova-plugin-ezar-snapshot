@@ -5,7 +5,7 @@
 <plugin xmlns="http://cordova.apache.org/ns/plugins/1.0"
 	  xmlns:android="http://schemas.android.com/apk/res/android"
 	  id="com.ezartech.ezar.snapshot"
-	  version="0.2.4">
+	  version="0.2.5">
 	  
 	<name>ezAR Snapshot</name>
 	<description>Capture an image in JPG or PNG format of the application UI and optionally save it to 

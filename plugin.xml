@@ -55,6 +55,10 @@
 	  </config-file>
 	  <source-file src="src/android/Snapshot.java" target-dir="src/com/ezartech/ezar/snapshot" />
       <source-file src="src/android/PermissionHelper.java" target-dir="src/com/ezartech/ezar/snapshot" />
+	  <source-file src="src/android/WebviewBitmapProvider.java" target-dir="src/com/ezartech/ezar/snapshot" />
+	  <source-file src="src/android/BasicWebviewBitmapProvider.java" target-dir="src/com/ezartech/ezar/snapshot" />
+	  <source-file src="src/android/snapshot-xwalk.jar" target-dir="libs" />
+	  <!--<framework src="src/android/snapshot-xwalk.jar"  custom="true"  />-->
   </platform>
   
 </plugin>

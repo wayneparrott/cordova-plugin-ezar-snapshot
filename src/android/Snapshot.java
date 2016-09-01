@@ -44,6 +44,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -65,6 +67,7 @@ public class Snapshot extends CordovaPlugin {
 	public final static int SAVE_TO_ALBUM_SEC = 1;
 
 	public final static int DEFAULT_BACKGROUND_COLOR = Color.WHITE;
+	private final static int NO_COLOR = -1;
 
 	private View webViewView;
 	private MediaActionSound mSound;
@@ -139,6 +142,20 @@ public class Snapshot extends CordovaPlugin {
 		return false;
 	}
 
+	public void returnBitmap(byte[] bitmap) {
+		callbackContext.success(bytesToBase64String(bitmap));
+	}
+
+	public void returnCordovaError(String msg) {
+		callbackContext.error(msg);
+		//callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, msg));
+	}
+
+	public void returnCordovaError(int msg) {
+		callbackContext.error(msg);
+		//callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, msg));
+	}
+
 	//clear state
 	private void reset() {
 		//clear parameters
@@ -191,7 +208,7 @@ public class Snapshot extends CordovaPlugin {
 //		byte[] decodedBytes = Base64.decode(imageData, 0);
 //		snapshotBitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
 		if (snapshotBitmap == null) {
-			callbackContext.error("Unable to convert image data to image");
+			returnCordovaError("Unable to convert image data to image");
 			return;
 		}
 		saveToMediaStore();
@@ -212,7 +229,11 @@ public class Snapshot extends CordovaPlugin {
 		buildAndSaveSnapshotImage(true);
 	}
 
-	private void buildAndSaveSnapshotImage(final boolean playSound) {
+	public void buildAndSaveSnapshotImage(final boolean playSound) {
+		buildAndSaveSnapshotImage(playSound,null);
+	}
+
+	public void buildAndSaveSnapshotImage(final boolean playSound, final Bitmap webviewBitmap) {
 
 		//must resume preview after it automatically stopped during takePicture()
 
@@ -229,16 +250,13 @@ public class Snapshot extends CordovaPlugin {
 
 				Log.d(TAG, "WebView width: " + webViewWidth + "  ht: " + webViewHt);
 
-				//create webView imageData
-				Bitmap webViewBitmap = null;
-				Canvas webViewCanvas = null;
-				if (includeWebView) {
-					webViewBitmap = Bitmap.createBitmap(webViewWidth, webViewHt, Bitmap.Config.ARGB_8888);
-					webViewCanvas = new Canvas(webViewBitmap);
-					if (!includeCameraView) {
-						webViewCanvas.drawColor(getBackgroundColor());
-					}
-					webViewView.draw(webViewCanvas);
+				if (includeWebView && webviewBitmap == null) {
+					WebviewBitmapProvider bitmapProvider = createWebviewBitmapProvider();
+
+					bitmapProvider.createBitmap(webViewWidth, webViewHt, webViewView,
+								includeCameraView ? getBackgroundColor() : NO_COLOR, Snapshot.this);
+
+					return; // delegate to provider to callback to this method with webviewBitmap defined
 				}
 
 				//move scaling to bitmapToBytes encoding
@@ -268,7 +286,7 @@ public class Snapshot extends CordovaPlugin {
 						Paint p = new Paint();
 						p.setAlpha(includeCameraView ? 255 : 0);
 						p.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP));
-						resultCanvas.drawBitmap(webViewBitmap, null, dstRect, p);
+						resultCanvas.drawBitmap(webviewBitmap, null, dstRect, p);
 
 					} catch (Exception ex) {
 						ex.printStackTrace();
@@ -282,16 +300,39 @@ public class Snapshot extends CordovaPlugin {
 					saveToPhotoGallery();
 				}
 
-				callbackContext.success(bytesToBase64String(snapshotBytes));
+				returnBitmap(snapshotBytes);
 
 				//clean up
-				resultBitmap = null;
-				resultCanvas = null;
-				webViewBitmap = null;
-				webViewCanvas = null;
+				//resultBitmap = null;
+				//resultCanvas = null;
+				//webviewBitmap = null;
+				//webViewCanvas = null;
 			}
 		});
 	}
+
+	private WebviewBitmapProvider createWebviewBitmapProvider() {
+
+		WebviewBitmapProvider provider = null;
+
+		if ("org.xwalk.core.XWalkView".equals(webViewView.getClass().getName()) ||
+		    "org.crosswalk.engine.XWalkCordovaView".equals(webViewView.getClass().getName())) {
+
+			try {
+				Class<?> clazz = Class.forName("com.ezartech.ezar.snapshot.XWalkGetBitmapCallbackImpl");
+				provider = (WebviewBitmapProvider) clazz.newInstance();
+			} catch (Exception ex) {
+				ex.printStackTrace();
+			}
+		}
+
+		if (provider == null) {
+			provider = new BasicWebviewBitmapProvider();
+		}
+
+		return provider;
+	}
+
 
 	//snapshotBytes must be set before calling this method
 	private void saveToMediaStore() {

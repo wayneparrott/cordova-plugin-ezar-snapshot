@@ -1,5 +1,9 @@
 #ezAR Snapshot Plugin Release Notes
 
+##0.2.5 (20160901)
+1. Android - added support for the [Crosswalk webview](https://crosswalk-project.org/). 
+
+
 ##0.2.4 (20160818)
 1. Provide a custom name for the snapshot image when saved to the Android photo gallery (Android only). 
 Added name option property for snapshot(successCB,errorCB,options).

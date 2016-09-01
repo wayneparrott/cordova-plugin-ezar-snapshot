@@ -5,7 +5,7 @@
 <plugin xmlns="http://cordova.apache.org/ns/plugins/1.0"
 	  xmlns:android="http://schemas.android.com/apk/res/android"
 	  id="com.ezartech.ezar.snapshot"
-	  version="0.2.4">
+	  version="0.2.5">
 	  
 	<name>ezAR Snapshot</name>
 	<description>Capture an image in JPG or PNG format of the application UI and optionally save it to 
@@ -55,6 +55,10 @@
 	  </config-file>
 	  <source-file src="src/android/Snapshot.java" target-dir="src/com/ezartech/ezar/snapshot" />
       <source-file src="src/android/PermissionHelper.java" target-dir="src/com/ezartech/ezar/snapshot" />
+	  <source-file src="src/android/WebviewBitmapProvider.java" target-dir="src/com/ezartech/ezar/snapshot" />
+	  <source-file src="src/android/BasicWebviewBitmapProvider.java" target-dir="src/com/ezartech/ezar/snapshot" />
+	  <source-file src="src/android/snapshot-xwalk.jar" target-dir="libs" />
+	  <!--<framework src="src/android/snapshot-xwalk.jar"  custom="true"  />-->
   </platform>
   
 </plugin>

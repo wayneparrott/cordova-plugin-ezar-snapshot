@@ -1,5 +1,8 @@
 #ezAR Snapshot Plugin Release Notes
 
+0.2.6
+added NSPhotoLibraryUsageDescription
+
 ##0.2.5 (20160901)
 1. Android - added support for the [Crosswalk webview](https://crosswalk-project.org/). 
 

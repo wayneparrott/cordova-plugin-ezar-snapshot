@@ -1,12 +1,12 @@
 /**
- * ezar.js
- * Copyright 2015, ezAR Technologies
+ * snapshot.js
+ * Copyright 2015, 2016 ezAR Technologies
  * Licensed under a modified MIT license, see LICENSE or http://ezartech.com/ezarstartupkit-license
  * 
- * @file Implements the ezar api for controlling device cameras, 
- *  zoom level and lighting. 
- * @author @wayne_parrott, @vridosh, @kwparrott
- * @version 0.1.0 
+ * @file Implements the ezAR Snapshot api for controlling capturing images of the user interface 
+ *  and saving images to the photo gallery. 
+ * @author @wayne_parrott
+ * @version 0.2.6 
  */
 
 var exec = require('cordova/exec'),
@@ -22,7 +22,7 @@ module.exports = (function() {
      * Create a screenshot image
      *
      * options = {
-     *   "name": null, only applies if saveToPhotoGallery is true
+     *   "name": null, only applies if saveToPhotoGallery is true, (android only)
      *   "saveToPhotoGallery": true, 
      *   "encoding": _snapshot.ImageEncoding.JPEG 
      *   "quality": 100,  only applys for jpeg encoding
@@ -30,7 +30,6 @@ module.exports = (function() {
      *   "includeCameraView": true,
      *   "includeWebView": true}
      */
-    
     _snapshot.snapshot = function(successCallback,errorCallback, options) {
                 
         argscheck.checkArgs('FFO', 'ezar.snapshot', arguments);        
@@ -69,6 +68,15 @@ module.exports = (function() {
 
     }
 
+    /**
+     * Save image to device photo gallery
+     *
+     * options = {
+     *   "name": null, only applies (android only)
+     *   "encoding": _snapshot.ImageEncoding.JPEG 
+     *   "quality": 100,  only applys for jpeg encoding
+     *   "scale": 100}
+     */
      _snapshot.saveToPhotoGallery = function(imageData,successCallback,errorCallback,options) {
                 
         argscheck.checkArgs('SFF', 'ezar.saveToPhotoGallery', arguments); 

@@ -1,5 +1,9 @@
 #ezAR Snapshot Plugin Release Notes
 
+##0.2.6 (20160915)
+1. iOS - added NSPhotoLibraryUsageDescription to plist, required for iOS 10
+
+
 ##0.2.5 (20160901)
 1. Android - added support for the [Crosswalk webview](https://crosswalk-project.org/). 
 

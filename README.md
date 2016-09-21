@@ -7,7 +7,7 @@ or does not have an active camera then the snapshot image will only include
 the WebView content.
 
 ##Supported Platforms
-- iOS 7, 8 & 9
+- iOS 7 and greater
 - Android 4.2 and greater 
 
 ##Getting Started

@@ -217,15 +217,6 @@ public class Snapshot extends CordovaPlugin {
 
 	private void secureSnapshot() {
 		Log.d(TAG, "secureSnapshot");
-
-//		if (includeCameraView) {
-//			Camera camera = getActiveVOCamera();
-//			if (camera != null) {
-//				//why start preview, I don't give a crap if camera is running or not
-//				camera.startPreview();
-//			}
-//		}
-
 		buildAndSaveSnapshotImage(true);
 	}
 
@@ -283,9 +274,12 @@ public class Snapshot extends CordovaPlugin {
 				if (includeWebView) {
 					//draw webviewBitmap on top of videoFrameBitmap, i.e., resultBitmap in the resultCanvas
 					try {
-						Paint p = new Paint();
-						p.setAlpha(includeCameraView ? 255 : 0);
-						p.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP));
+						Paint p = null;
+						if (includeCameraView) { 
+							p = new Paint();
+							p.setAlpha(includeCameraView ? 255 : 0);
+							p.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP));
+						}
 						resultCanvas.drawBitmap(webviewBitmap, null, dstRect, p);
 
 					} catch (Exception ex) {

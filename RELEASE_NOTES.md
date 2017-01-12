@@ -1,5 +1,8 @@
 #ezAR Snapshot Plugin Release Notes
 
+##0.2.7 (20170112)
+1. android - fix black snapshot image when plugin used standalone or when videoOverlay cameraView is excluded.
+
 ##0.2.6 (20160915)
 1. iOS - added NSPhotoLibraryUsageDescription to plist, required for iOS 10
 

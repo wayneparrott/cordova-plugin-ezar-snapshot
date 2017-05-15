@@ -1,0 +1,25 @@
+{
+  "name": "com.ezartech.ezar.snapshot",
+  "version": "0.2.8",
+  "description": "Capture an image in JPG or PNG format of the application UI and optionally save it to \r\n\t             the device image gallery. Works with ezAR to include the camera preview background\r\n\t\t\t\t of the webview. Works with standard and option webviews such as Crosswalk and WKWebView.\r\n\t",
+  "cordova": {
+    "id": "com.ezartech.ezar.snapshot",
+    "platforms": [
+      "ios",
+      "android"
+    ]
+  },
+  "keywords": [
+    "snapshot",
+    "screenshot",
+    "ecosystem:cordova",
+    "cordova-ios",
+    "cordova-android"
+  ],
+  "author": "Wayne Parrott",
+  "license": "modified MIT License, see http://ezartech.com/ezarstartupkit-license",
+  "bugs": {
+    "url": "https://support.ezartech.com"
+  },
+  "homepage": "https://ezartech.com"
+}

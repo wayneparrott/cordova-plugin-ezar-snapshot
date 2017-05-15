@@ -1,5 +1,9 @@
 #ezAR Snapshot Plugin Release Notes
 
+##0.2.8 (20170511)
+1. Added package.json for Cordova 7 compliance.
+
+
 ##0.2.7 (20170112)
 1. android - fix black snapshot image when plugin used standalone or when videoOverlay cameraView is excluded.
 

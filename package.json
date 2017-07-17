@@ -1,7 +1,7 @@
 {
   "name": "ezAR Screenshot Plugin",
   "version": "1.0.0",
-  "description": "Capture application UI and optionally save it to \r\n\t             the device image gallery. Works with ezAR to include the camera preview background\r\n\t\t\t\t of the webview. Works with standard and option webviews such as Crosswalk and WKWebView.\r\n\t",
+  "description": "Capture an image of application UI including Cordova webview",
   "cordova": {
     "id": "cordova-plugin-ezar-snapshot",
     "platforms": [

@@ -1,7 +1,8 @@
 #ezAR Snapshot Plugin Release Notes
 
-##0.2.8 (20170511)
+##1.0.0 (20170717)
 1. Added package.json for Cordova 7 compliance.
+2. Renamed to cordova-plugin-ezar-snapshot in preparation for publishing to npm
 
 
 ##0.2.7 (20170112)

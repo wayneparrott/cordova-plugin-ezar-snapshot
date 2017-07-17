@@ -13,7 +13,7 @@ the WebView content.
 ##Getting Started
 Add the snapshot plugin to your Corodva project the Cordova CLI
 
-        cordova plugin add pathToEzar/com.ezartech.ezar.snapshot
+        cordova plugin add cordova-plugin-ezar-snapshot
 
 Next in your Cordova JavaScript deviceready handler include the following  
 JavaScript snippet to initialize ezAR and activate the camera on the back of the device.
@@ -36,6 +36,6 @@ See [ezartech.com](http://ezartech.com) for documentation and support.
 The ezAR Snapshot is licensed under a [modified MIT license](http://www.ezartech.com/ezarstartupkit-license).
 
 
-Copyright (c) 2015-2016, ezAR Technologies
+Copyright (c) 2015-2017, ezAR Technologies
 
 

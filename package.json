@@ -1,5 +1,5 @@
 {
-  "name": "ezAR Screenshot Plugin",
+  "name": "cordova-plugin-ezar-snapshot",
   "version": "1.0.0",
   "description": "Capture an image of application UI including Cordova webview",
   "cordova": {

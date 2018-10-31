@@ -1,3 +1,5 @@
+Deprecated - no longer supported.
+
 #ezAR Snapshot Cordova Plugin
 Capture images of the application user interface in JPG or PNG format.  
 Optionally, save the image to the default photo gallery.
